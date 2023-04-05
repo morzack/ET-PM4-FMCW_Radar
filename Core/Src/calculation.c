@@ -17,6 +17,7 @@
  *****************************************************************************/
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdbool.h>
 #include <math.h>
 
 #include "stm32f4xx_hal.h"
@@ -41,8 +42,8 @@ COIL_measurment_t COIL; ///< struct for storing Coil measurement results
 
 uint32_t channel1[_DOPP_ADC_SAMPLES / 2]; ///< samples for channel 1 (PAD 1)
 uint32_t channel2[_DOPP_ADC_SAMPLES / 2]; ///< samples for channel 2 (PAD 2)
-uint32_t channel3[ADC_NUMS];			  ///< samples for channel 3 (PAD 3)
-uint32_t channel4[ADC_NUMS];			  ///< samples for channel 4 (PAD 4)
+uint32_t channel3[_DOPP_ADC_SAMPLES/2];			  ///< samples for channel 3 (PAD 3)
+uint32_t channel4[_DOPP_ADC_SAMPLES/2];			  ///< samples for channel 4 (PAD 4)
 uint32_t channel5[ADC_NUMS];			  ///< samples for channel 5 (COIL)
 
 uint32_t float_avg_array[FLOAT_AVG_LENGTH];	 ///< array used for moving average
@@ -108,6 +109,7 @@ void CALC_DOPP_data(void)
 	//	}
 	
 	init_cfft(); // NOTE idk why i need to init each time for it to work
+	// current theory is something is overwriting the memory for some reason
 
 	float sample_adc1;
 	float sample_adc2;
@@ -122,8 +124,12 @@ void CALC_DOPP_data(void)
 		// format : { real[0], imag[0], real[1], imag[1], real[2], imag[2] ... }
 		cfft_inout[n * 2] = sample_adc1;
 		//		cfft_inout[n*2+1] = sample_adc2;
-		cfft_inout[n * 2 + 1] = 0;
+		cfft_inout[n * 2 + 1] = sample_adc2;
 		//		rfft_inout[n] = sample_adc1;
+		if (n < _DOPP_ADC_SAMPLES / 2) {
+			channel3[n] = sample_adc1;
+			channel4[n] = sample_adc2;
+		}
 	}
 	//	arm_cfft_f32(&cfft_instance, cfft_inout, IFFT_FLAG, DO_B
 	arm_cfft_f32(&cfft_instance, cfft_inout, 0, 1);
@@ -134,48 +140,61 @@ void CALC_DOPP_data(void)
 	//		cmplx_mag[2*i] = cfft_inout[i];
 	//		cmplx_mag[2*i+1] = cfft_inout[i];
 	//	}
-	float cmplx_mag_out[_DOPP_ADC_SAMPLES / 2];
+	float cmplx_mag_out[_DOPP_ADC_SAMPLES];
 	arm_cmplx_mag_f32(cfft_inout, cmplx_mag_out, _DOPP_ADC_SAMPLES);
 
 	for (int i = 0; i < _DOPP_ADC_SAMPLES/2; i++)
 	{
 		// channel1[i] = cmplx_mag_out[i]; // TODO fake data
 		channel1[i] = cmplx_mag_out[i];
+		channel2[i] = cmplx_mag_out[i+_DOPP_ADC_SAMPLES/2];
 		// channel1[i] = i*100;
 		//		channel1[i] = cfft_inout[i];
-		channel2[i] = 0;
+		// channel2[i] = cmplx_mag_out[i];
 		//		channel2[i] = cfft_inout[i*2+1];
 	}
 	//	for (int i=0; i<_DOPP_ADC_SAMPLES/2; i++) {
 	//		channel1[i] = cmplx_mag_out[i];
 	//		channel2[i] = 0;
 	//	}
-	for (int i = _DOPP_ADC_SAMPLES / 2; i < _DOPP_ADC_SAMPLES; i++)
-	{
-		channel1[i] = 0;
-		//		channel1[i] = cfft_inout[i];
-		channel2[i] = 0;
-		//		channel2[i] = cfft_inout[i*2+1];
-	}
 }
 
-int CALC_DOPP_cfft_peak(void) {
-	// TODO look into better filtering, probably
-	// we want to take samples over time, as well as be able to process multiple radar returns (peaks)
+int CALC_DOPP_cfft_peak(bool full_spectrum) {
 	float peak_val = 0;
 	int peak_idx = -1;
 
-	for (int i=1; i<_DOPP_ADC_SAMPLES/2; i++) { // ignore 0hz bin, since that has a high frequency
+	for (int i=1; i<_DOPP_ADC_SAMPLES/2; i++) { // ignore 0hz bin, since that has a high value
 		if (channel1[i]  > peak_val) {
 			peak_val = channel1[i];
 			peak_idx = i;
 		}
 	}
 
-	if (peak_idx == -1) {
-		return 0;
+	if (!full_spectrum) {
+		if (peak_idx == -1) {
+			return 0;
+		}
+		return peak_idx * _DOPP_FREQ_BIN_SIZE; // TODO convert to frequency
 	}
-	return peak_idx * _DOPP_FREQ_BIN_SIZE; // TODO convert to frequency
+
+	for (int i=_DOPP_ADC_SAMPLES/2+1; i<_DOPP_ADC_SAMPLES; i++) {
+		if (channel1[i]  > peak_val) {
+			peak_val = channel1[i];
+			peak_idx = i-_DOPP_ADC_SAMPLES;
+		}
+	}
+	return peak_idx * _DOPP_FREQ_BIN_SIZE;
+}
+
+float CALC_DOPP_cfft_speed(int peak_freq) {
+	// Doppler freq:
+	// f_d = 2 * v/wavelength
+	// Wavelength = c/f_c
+	// f_d = 2v*f_c/c
+	// v = f_d * c / (2*f_c)
+
+	float vel = (float)peak_freq * 300000000.0f / (2.0 * 24150000000.0f);
+	return vel;
 }
 
 /** ***************************************************************************

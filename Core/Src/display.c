@@ -305,9 +305,20 @@ void DISPLAY_voltage_single(void)
 	MENU_text[0].text_size = &Font16;
 	MENU_text[0].text_color = MENU_BUTTON_TEXT_COLOR;
 	MENU_text[0].background_color = 0xFF000000;
-	snprintf(str, 15, "Peak: %dHz", CALC_DOPP_cfft_peak());
+    int cfft_peak_freq = CALC_DOPP_cfft_peak(true);
+	snprintf(str, 15, "Peak: %dHz", cfft_peak_freq);
 	strcpy(MENU_text[0].text_line, str);
 	MENU_draw_text(MENU_text[0], LEFT);
+    
+    MENU_text[1].pos[0] = 10;
+	MENU_text[1].pos[1] = HEADER_HEIGHT + MENU_text[0].text_size->Height + 10;
+	MENU_text[1].max_length = 7;
+	MENU_text[1].text_size = &Font16;
+	MENU_text[1].text_color = MENU_BUTTON_TEXT_COLOR;
+	MENU_text[1].background_color = 0xFF000000;
+	snprintf(str, 15, "Speed: %.1fm/s", CALC_DOPP_cfft_speed(cfft_peak_freq));
+	strcpy(MENU_text[1].text_line, str);
+	MENU_draw_text(MENU_text[1], LEFT);
 
     DISPLAY_data_voltage();
 
@@ -464,10 +475,14 @@ void DISPLAY_data_voltage(void)
 
 //			MENU_draw_graph(10, HEADER_HEIGHT+70, 220, 130, channel1, 0xFF0000FF, true);
 
-        MENU_draw_graph_log(10, HEADER_HEIGHT + 70, 220, 130, channel1, 0xFF0000FF, true);
+        MENU_draw_graph_log(10, HEADER_HEIGHT + 40, 220, 100, channel1, 0xFF0000FF, true);
+        MENU_draw_graph_log(10, HEADER_HEIGHT + 40, 220, 100, channel2, 0xFFFF0000, false);
 //			MENU_draw_graph(10, HEADER_HEIGHT + 70, 220, 130, channel2, 0xFFFF0000, false);
 //			MENU_draw_graph(10, HEADER_HEIGHT + 70, 220, 130, channel3, 0xFF00FF00, false);
 //			MENU_draw_graph(10, HEADER_HEIGHT + 70, 220, 130, channel4, 0xFFFFA500, false);
+
+        MENU_draw_graph(10, HEADER_HEIGHT+40+100+10, 220, 100, channel3, 0xFF0000FF, true);
+        MENU_draw_graph(10, HEADER_HEIGHT+40+100+10, 220, 100, channel4, 0xFFFF0000, false);
     }
 }
 

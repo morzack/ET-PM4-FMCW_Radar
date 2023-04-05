@@ -32,14 +32,15 @@ extern uint32_t ADC_samples[NUM_CHANNEL * ADC_NUMS];
 extern uint16_t batt_sample;
 
 // DOPP defines
-#define _DOPP_ADC_FS 			60000 // 64kHz
+// #define _DOPP_ADC_FS 			60000 // 64kHz for FMCW
+#define _DOPP_ADC_FS            4000 // 4kHz for DOPP
 //#define _DOPP_ADC_CLOCK
 //#define _DOPP_ADC_CLOCK_PS
 #define _DOPP_TIM_CLOCK			84000000
 #define _DOPP_TIM_TOP			9
 #define _DOPP_TIM_PRESCALE		(_DOPP_TIM_CLOCK/_DOPP_ADC_FS/(_DOPP_TIM_TOP+1)-1)
-#define _DOPP_ADC_SAMPLES		128
-#define _DOPP_ADC_SAMPLES_ARR	128
+#define _DOPP_ADC_SAMPLES		256
+#define _DOPP_ADC_SAMPLES_ARR	256
 #define _DOPP_ADC_SAMPLES_ZPAD	_DOPP_ADC_SAMPLES_ARR-_DOPP_ADC_SAMPLES
 #define _DOPP_FREQ_BIN_SIZE     _DOPP_ADC_FS/_DOPP_ADC_SAMPLES_ARR
 

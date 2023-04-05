@@ -13,6 +13,8 @@
  *****************************************************************************/
 #include "measuring.h"
 
+#include <stdbool.h>
+
 /******************************************************************************
  * Types
  *****************************************************************************/
@@ -35,8 +37,8 @@ extern COIL_measurment_t COIL;
 
 extern uint32_t channel1[_DOPP_ADC_SAMPLES/2];    ///< samples for channel 1 (PAD 1)
 extern uint32_t channel2[_DOPP_ADC_SAMPLES/2];    ///< samples for channel 2 (PAD 2)
-extern uint32_t channel3[ADC_NUMS];    ///< samples for channel 3 (PAD 3)
-extern uint32_t channel4[ADC_NUMS];    ///< samples for channel 4 (PAD 4)
+extern uint32_t channel3[_DOPP_ADC_SAMPLES/2];    ///< samples for channel 3 (PAD 3)
+extern uint32_t channel4[_DOPP_ADC_SAMPLES/2];    ///< samples for channel 4 (PAD 4)
 extern uint32_t channel5[ADC_NUMS];    ///< samples for channel 5 (COIL)
 
 #define FLOAT_AVG_LENGTH 20
@@ -47,7 +49,8 @@ void CALC_battery_level(uint16_t batt_sample);
 void CALC_pad_measurement(void);
 void CALC_coil_measurement(void);
 void CALC_DOPP_data(void);
-int CALC_DOPP_cfft_peak(void);
+int CALC_DOPP_cfft_peak(bool full_spectrum);
+float CALC_DOPP_cfft_speed(int peak_freq);
 void init_cfft(void);
 
 #endif

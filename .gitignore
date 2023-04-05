@@ -1,0 +1,6 @@
+html/
+Debug/
+.vscode/
+.settings/
+.DS_Store
+Core.zip

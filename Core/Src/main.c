@@ -106,7 +106,7 @@ int main(void) {
 		// MENU_update_buttons(TS_State, 2);
 		DISPLAY_voltage_single();
 
-		HAL_Delay(1000);					// Wait or sleep
+		HAL_Delay(100);					// Wait or sleep
 	}
 }
 

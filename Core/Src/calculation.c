@@ -120,12 +120,17 @@ void CALC_DOPP_data(void)
 	{
 		sample_adc1 = (float32_t)(ADC_DOPP_samples[n * 2]);
 		sample_adc2 = (float32_t)(ADC_DOPP_samples[n * 2 + 1]);
+
+		// fake data using sin/cos
+		// TODO remove before showing off board
+		const float freq = 500;
+		sample_adc1 = 1000+1000*cos(2.0f*3.14159f*freq*(float)n/(float)_DOPP_ADC_FS);
+		sample_adc2 = 1000+1000*sin(2.0f*3.14159f*freq*(float)n/(float)_DOPP_ADC_FS);
+
 		// todo : fill into the inout buffer for the FFT
 		// format : { real[0], imag[0], real[1], imag[1], real[2], imag[2] ... }
 		cfft_inout[n * 2] = sample_adc1;
-		//		cfft_inout[n*2+1] = sample_adc2;
 		cfft_inout[n * 2 + 1] = sample_adc2;
-		//		rfft_inout[n] = sample_adc1;
 		if (n < _DOPP_ADC_SAMPLES / 2) {
 			channel3[n] = sample_adc1;
 			channel4[n] = sample_adc2;

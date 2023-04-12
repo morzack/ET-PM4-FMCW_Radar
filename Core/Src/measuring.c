@@ -77,6 +77,8 @@ bool MEAS_DOPP_ready = false;
 uint32_t MEAS_DOPP_input_count = 0;
 uint32_t ADC_DOPP_samples[DOPP_ADC_SAMPLES * 2]; // needs zero padding later
 
+bool use_fake_dopp_data = false;
+
 
 /******************************************************************************
  * Functions

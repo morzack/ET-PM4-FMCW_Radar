@@ -46,6 +46,8 @@ extern bool MEAS_DOPP_ready;
 extern uint32_t MEAS_DOPP_input_count;
 extern uint32_t ADC_DOPP_samples[DOPP_ADC_SAMPLES * 2]; // needs zero padding later
 
+extern bool use_fake_dopp_data; // TODO for firmware test only
+
 
 /******************************************************************************
  * Functions

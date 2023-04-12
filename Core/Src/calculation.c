@@ -88,9 +88,11 @@ void CALC_DOPP_data(void)
 
 		// TODO remove before showing off board
 		// fake data using sin/cos (to test the directionality)
-		// const float freq = 500;
-		// sample_adc1 = 1000+1000*cos(2.0f*3.14159f*freq*(float)n/(float)DOPP_ADC_FS);
-		// sample_adc2 = 1000+1000*sin(2.0f*3.14159f*freq*(float)n/(float)DOPP_ADC_FS);
+		if (use_fake_dopp_data) {
+			const float freq = 500;
+			sample_adc1 = 1000+1000*cos(2.0f*3.14159f*freq*(float)n/(float)DOPP_ADC_FS);
+			sample_adc2 = 1000+1000*sin(2.0f*3.14159f*freq*(float)n/(float)DOPP_ADC_FS);
+		}
 
 		cfft_inout[n * 2] = sample_adc1;
 		cfft_inout[n * 2 + 1] = sample_adc2;

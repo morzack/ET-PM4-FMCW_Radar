@@ -98,8 +98,11 @@ int main(void) {
 		// MENU_check_transition();
 				
 		DISPLAY_FFT_diagnosis();
+		if (PB_pressed()) {
+			use_fake_dopp_data = !use_fake_dopp_data;
+		}
 
-		HAL_Delay(100);					// Wait or sleep
+		HAL_Delay(REFRESH_RATE);					// Wait or sleep
 	}
 }
 

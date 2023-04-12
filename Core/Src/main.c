@@ -26,7 +26,7 @@
 
 #include "main.h"
 #include "pushbutton.h"
-#include "menu.h"
+#include "render.h"
 #include "measuring.h"
 #include "calculation.h"
 #include "display.h"
@@ -41,9 +41,6 @@
  * Variables
  *****************************************************************************/
 bool buzzer = true;  ///< Toggle for Buzzer on or off
-bool single = false; ///< Toggle for single and accurate measurement 
-
-uint32_t count = 0;  ///< Counter for accurate measurement
 
 
 /******************************************************************************
@@ -84,27 +81,23 @@ int main(void) {
 	BSP_LED_Init(LED3);					// Toggles in while loop
 	BSP_LED_Init(LED4);					// Is toggled by user button
 
-	__HAL_RCC_GPIOC_CLK_ENABLE();			// Enable Clock for GPIO port C
-	GPIOC->MODER &= ~GPIO_MODER_MODER8; 	// Reset mode for PC8
-	GPIOC->MODER |= GPIO_MODER_MODER8_0;	// Set PC8 as output
-	GPIOC->BSRR = GPIO_BSRR_BS8;			// Bit reset to turn off device
+	// __HAL_RCC_GPIOC_CLK_ENABLE();			// Enable Clock for GPIO port C
+	// GPIOC->MODER &= ~GPIO_MODER_MODER8; 	// Reset mode for PC8
+	// GPIOC->MODER |= GPIO_MODER_MODER8_0;	// Set PC8 as output
+	// GPIOC->BSRR = GPIO_BSRR_BS8;			// Bit reset to turn off device
 
 	gyro_disable();						// Disable gyro, use those analog inputs
 
 	MEAS_GPIO_analog_init();			// Configure GPIOs in analog mode
 	MEAS_timer_init();					// Configure the timer
 
-	// DISPLAY_main();						//display main menu
-
-	/* Infinite while loop */
 	while (1) {							// Infinitely loop in main function
 		BSP_LED_Toggle(LED3);			// Visual feedback when running
 
 		/* Comment next line if touchscreen interrupt is enabled */
 		// MENU_check_transition();
 				
-		// MENU_update_buttons(TS_State, 2);
-		DISPLAY_voltage_single();
+		DISPLAY_FFT_diagnosis();
 
 		HAL_Delay(100);					// Wait or sleep
 	}

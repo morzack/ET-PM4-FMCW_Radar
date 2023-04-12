@@ -33,15 +33,8 @@
  * Functions
  *****************************************************************************/
 void DISPLAY_battery(void);
-void DISPLAY_main(void);
-void DISPLAY_voltage(void);
-void DISPLAY_voltage_single(void);
-void DISPLAY_voltage_accurate(void);
-void DISPLAY_data_voltage(void);
-void DISPLAY_current(void);
-void DISPLAY_current_single(void);
-void DISPLAY_current_accurate(void);
-void DISPLAY_data_current(void);
+void DISPLAY_FFT_diagnosis(void);
+void DISPLAY_graph_FFT_data(void);
 
 
 #endif

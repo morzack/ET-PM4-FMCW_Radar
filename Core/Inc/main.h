@@ -17,8 +17,6 @@
  * Defines
  *****************************************************************************/
 extern bool buzzer;
-extern bool single;
-extern uint32_t count;
 
 
 /** ***************************************************************************
@@ -29,7 +27,7 @@ extern uint32_t count;
  *****************************************************************************/
 #define EVAL_REV_E
 
-#define FLIPPED_LCD  ///< when defined, LCD orientation is rotated by 180°
+// #define FLIPPED_LCD  ///< when defined, LCD orientation is rotated by 180°
 
 
 /******************************************************************************

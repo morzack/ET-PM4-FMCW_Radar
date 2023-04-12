@@ -23,8 +23,8 @@
 #define ADC_NUMS        64      ///< Number of samples
 #define NUM_CHANNEL     5       ///< Number of channels
 #define ADC_DAC_RES     12      ///< Resolution
-extern bool MEAS_data1_ready;
-extern bool MEAS_data3_ready;
+extern bool MEAS_data1_ready; // PC1
+extern bool MEAS_data3_ready; // PC3
 extern uint32_t MEAS_input_count;
 extern bool DAC_active;
 extern bool ACC_data_rdy;
@@ -32,21 +32,19 @@ extern uint32_t ADC_samples[NUM_CHANNEL * ADC_NUMS];
 extern uint16_t batt_sample;
 
 // DOPP defines
-// #define _DOPP_ADC_FS 			60000 // 64kHz for FMCW
-#define _DOPP_ADC_FS            4000 // 4kHz for DOPP
-//#define _DOPP_ADC_CLOCK
-//#define _DOPP_ADC_CLOCK_PS
-#define _DOPP_TIM_CLOCK			84000000
-#define _DOPP_TIM_TOP			9
-#define _DOPP_TIM_PRESCALE		(_DOPP_TIM_CLOCK/_DOPP_ADC_FS/(_DOPP_TIM_TOP+1)-1)
-#define _DOPP_ADC_SAMPLES		256
-#define _DOPP_ADC_SAMPLES_ARR	256
-#define _DOPP_ADC_SAMPLES_ZPAD	_DOPP_ADC_SAMPLES_ARR-_DOPP_ADC_SAMPLES
-#define _DOPP_FREQ_BIN_SIZE     _DOPP_ADC_FS/_DOPP_ADC_SAMPLES_ARR
+// #define DOPP_ADC_FS 			60000 // 64kHz for FMCW
+#define DOPP_ADC_FS             4000 // 4kHz for DOPP
+#define DOPP_TIM_CLOCK			84000000
+#define DOPP_TIM_TOP			9
+#define DOPP_TIM_PRESCALE		(DOPP_TIM_CLOCK/DOPP_ADC_FS/(DOPP_TIM_TOP+1)-1)
+#define DOPP_ADC_SAMPLES		128 // TODO only sampling this high for firmware test
+#define DOPP_ADC_SAMPLES_ARR	128
+#define DOPP_ADC_SAMPLES_ZPAD   DOPP_ADC_SAMPLES_ARR-DOPP_ADC_SAMPLES
+#define DOPP_FREQ_BIN_SIZE      DOPP_ADC_FS/DOPP_ADC_SAMPLES_ARR
 
 extern bool MEAS_DOPP_ready;
 extern uint32_t MEAS_DOPP_input_count;
-extern uint32_t ADC_DOPP_samples[_DOPP_ADC_SAMPLES * 2]; // needs zero padding later
+extern uint32_t ADC_DOPP_samples[DOPP_ADC_SAMPLES * 2]; // needs zero padding later
 
 
 /******************************************************************************
@@ -58,12 +56,6 @@ void DAC_reset(void);
 void DAC_init(void);
 void DAC_increment(void);
 void ADC_reset(void);
-void ADC2_IN15_single_init(void);
-void ADC2_IN15_single_read(void);
-void ADC1_IN5_IN13_scan_init(void);
-void ADC1_IN5_IN13_scan_start(void);
-void ADC3_IN4_IN11_IN13_scan_init(void);
-void ADC3_IN4_IN11_IN13_scan_start(void);
 void reset_data(void);
 void copy_data(void);
 bool batteryStatus(void);

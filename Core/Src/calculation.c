@@ -90,7 +90,7 @@ void CALC_DOPP_data(void)
 		// fake data using sin/cos (to test the directionality)
 		if (use_fake_dopp_data) {
 			const float freq = 500;
-			sample_adc1 = 1000+1000*cos(2.0f*3.14159f*freq*(float)n/(float)DOPP_ADC_FS);
+			sample_adc1 = 1000 + 1000 * cos(2.0f * 3.14159f * freq * (float)n / (float)DOPP_ADC_FS);
 			sample_adc2 = 1000+1000*sin(2.0f*3.14159f*freq*(float)n/(float)DOPP_ADC_FS);
 		}
 

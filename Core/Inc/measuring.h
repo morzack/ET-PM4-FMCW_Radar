@@ -33,7 +33,7 @@ extern uint16_t batt_sample;
 
 // DOPP defines
 // #define DOPP_ADC_FS 			60000 // 64kHz for FMCW
-#define DOPP_ADC_FS             4000 // 4kHz for DOPP
+#define DOPP_ADC_FS             6000 // 4kHz for DOPP
 #define DOPP_TIM_CLOCK			84000000
 #define DOPP_TIM_TOP			9
 #define DOPP_TIM_PRESCALE		(DOPP_TIM_CLOCK/DOPP_ADC_FS/(DOPP_TIM_TOP+1)-1)
@@ -41,6 +41,20 @@ extern uint16_t batt_sample;
 #define DOPP_ADC_SAMPLES_ARR	128
 #define DOPP_ADC_SAMPLES_ZPAD   DOPP_ADC_SAMPLES_ARR-DOPP_ADC_SAMPLES
 #define DOPP_FREQ_BIN_SIZE      DOPP_ADC_FS/DOPP_ADC_SAMPLES_ARR
+
+#define DAC_INCREMENT           20
+#define DAC_N_SAMPLES           (1UL<<ADC_DAC_RES) / DAC_INCREMENT
+#define DAC_SWEEP_TIME          0.25 // seconds TODO make correct
+#define DAC_TIME_PER_SAMPLE     DAC_SWEEP_TIME / DAC_N_SAMPLES
+#define DAC_SAMPLE_FREQ         1 / DAC_TIME_PER_SAMPLE
+
+#define DAC_TIME_CLOCK          84000000
+// #define DAC_TIM_TOP             2
+// #define DAC_TIM_PRESCALE        (DAC_TIME_CLOCK/(DAC_SAMPLE_FREQ)/(DAC_TIM_TOP+1)-1)
+// lol idk how to configure this
+// works for 0.5ms sweep (measured 492us)
+#define DAC_TIM_TOP 204
+#define DAC_TIM_PRESCALE 0
 
 extern bool MEAS_DOPP_ready;
 extern uint32_t MEAS_DOPP_input_count;
@@ -66,6 +80,9 @@ void ADC_DOPP_scan_init(void);
 void ADC_DOPP_scan_start(void);
 void DOPP_copy_data(void);
 void DOPP_reset_data(void);
+
+void DAC_sweep_init(void);
+void DAC_sweep_start(void);
 
 
 #endif

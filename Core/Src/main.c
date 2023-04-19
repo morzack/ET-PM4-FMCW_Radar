@@ -77,6 +77,10 @@ int main(void) {
 	PB_init();							// Initialize the user pushbutton
 	PB_enableIRQ();						// Enable interrupt on user pushbutton
 
+	DAC_reset();
+	DAC_init();
+
+	DAC_active = true;
 
 	BSP_LED_Init(LED3);					// Toggles in while loop
 	BSP_LED_Init(LED4);					// Is toggled by user button
@@ -101,6 +105,9 @@ int main(void) {
 		if (PB_pressed()) {
 			use_fake_dopp_data = !use_fake_dopp_data;
 		}
+
+		// DAC_increment();
+		DAC_sweep_start();
 
 		HAL_Delay(REFRESH_RATE);					// Wait or sleep
 	}

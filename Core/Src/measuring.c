@@ -138,6 +138,15 @@ void MEAS_timer_init(void)
     TIM2->DIER |= TIM_DIER_UIE;         // Enable update interrupt
     NVIC_ClearPendingIRQ(TIM2_IRQn);    // Clear pending interrupt on line 0
     NVIC_EnableIRQ(TIM2_IRQn);          // Enable interrupt line 0 in the NVIC
+
+	__HAL_RCC_TIM5_CLK_ENABLE();
+	TIM5->PSC = DAC_TIM_PRESCALE;
+	TIM5->ARR = DAC_TIM_TOP;
+	// TIM5->CR2 |= TIM_CR2_MMS_1;         // TRGO on update
+
+	TIM5->DIER |= TIM_DIER_UIE;
+	NVIC_ClearPendingIRQ(TIM5_IRQn);
+	NVIC_EnableIRQ(TIM5_IRQn);
 }
 
 
@@ -171,8 +180,11 @@ void DAC_init(void)
  *
  *****************************************************************************/
 void DAC_increment(void) {
-	DAC_sample += 20;				// Increment DAC output
-	if (DAC_sample >= (1UL << ADC_DAC_RES)) { DAC_sample = 0; }	// Go to 0
+	DAC_sample += DAC_INCREMENT;				// Increment DAC output
+	if (DAC_sample >= (1UL << ADC_DAC_RES)) {
+		DAC_sample = 0;
+		TIM5->CR1 &= ~TIM_CR1_CEN;		// Disable timer
+	}	// Go to 0
 	DAC->DHR12R2 = DAC_sample;		// Write new DAC output value
 }
 
@@ -197,6 +209,11 @@ void ADC_reset(void) {
 void TIM2_IRQHandler(void)
 {
 	TIM2->SR &= ~TIM_SR_UIF;			// Clear pending interrupt flag
+}
+
+void TIM5_IRQHandler(void)
+{
+	TIM5->SR &= ~TIM_SR_UIF;			// Clear pending interrupt flag
 	if (DAC_active) {
 		DAC_increment();
 	}
@@ -403,3 +420,9 @@ void DOPP_reset_data(void) {
 	}
 }
 
+void DAC_sweep_init(void) {
+}
+
+void DAC_sweep_start(void) {
+	TIM5->CR1 |= TIM_CR1_CEN;			// Enable timer
+}

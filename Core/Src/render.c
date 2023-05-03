@@ -210,7 +210,7 @@ void MENU_draw_graph_log(uint32_t pos_x, uint32_t pos_y, uint32_t size_x, uint32
     uint32_t updated_samples[DOPP_ADC_SAMPLES/2];
     for (uint32_t i = 0; i < DOPP_ADC_SAMPLES/2; i++) {
         // 20log10(x) (dB) * 10 for scaling factor on display
-        updated_samples[i] = (uint32_t)(log((double)samples[i])*20)*LOG_GRAPH_SCALING;
+        updated_samples[i] = (uint32_t)(log((double)samples[i])*20)*LOG_GRAPH_SCALING*((double)i/15.0f);
     }
 
     MENU_draw_graph(pos_x, pos_y, size_x, size_y, updated_samples, color, clear);

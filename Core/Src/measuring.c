@@ -58,6 +58,7 @@
  * Variables
  *****************************************************************************/
 bool MEAS_data1_ready = false;                      ///< New data from ADC 1 is ready
+bool MEAS_data2_ready = false;
 bool MEAS_data3_ready = false;                      ///< New data from ADC 3 is ready
 bool ACC_data_rdy = false;                          ///< Accumulator data is ready
 
@@ -66,6 +67,10 @@ bool DAC_active = false;				            ///< DAC output active?
 
 uint32_t ADC_samples[NUM_CHANNEL*ADC_NUMS];         ///< Global Array
 uint16_t batt_sample;                               ///< Global variable
+
+bool MEAS_FMCW_ready = false;
+static uint32_t ADC_FMCW_sample_count = 0;
+uint32_t ADC_FMCW_samples[FMCW_ADC_SAMPLES * 2];	// 2x interleave for dual mode DMA (not really needed)
 
 static uint32_t ADC1_sample_count = 0;              ///< Index for ADC1 buffer
 static uint32_t ADC3_sample_count = 0;              ///< Index for ADC3 buffer
@@ -76,6 +81,9 @@ static uint32_t DAC_sample = 0;                     ///< DAC output value
 bool MEAS_DOPP_ready = false;
 uint32_t MEAS_DOPP_input_count = 0;
 uint32_t ADC_DOPP_samples[DOPP_ADC_SAMPLES * 2]; // needs zero padding later
+
+bool DOPP_active = false;
+bool FMCW_active = false;
 
 bool use_fake_dopp_data = false;
 
@@ -94,6 +102,8 @@ bool use_fake_dopp_data = false;
  * - ADC123_IN11 = GPIO PC1
  * - ADC123_IN13 = GPIO PC3
  * - ADC12_IN15 = GPIO PC5
+ * - ADC12_IN14 = GPIO PC4
+ * - ADC12_IN15 = GPIO PC5
  * - ADC3_IN4 = GPIO PF6
  * - DAC_OUT2 = GPIO PA5 (= same GPIO as ADC12_IN5)
  *****************************************************************************/
@@ -107,6 +117,7 @@ void MEAS_GPIO_analog_init(void)
     GPIOC->MODER |= (GPIO_MODER_MODER1_Msk);    // Analog mode for PC1 = ADC123_IN11
     GPIOC->MODER |= (GPIO_MODER_MODER3_Msk);    // Analog mode for PC3 = ADC123_IN13
     GPIOC->MODER |= (GPIO_MODER_MODER5_Msk);    // Analog mode for PC5 = ADC12_IN15
+    GPIOC->MODER |= (GPIO_MODER_MODER4_Msk);    // Analog mode for PC4 = ADC12_IN14
 
 	__HAL_RCC_GPIOF_CLK_ENABLE();		        // Enable Clock for GPIO port F
 	GPIOF->MODER |= (GPIO_MODER_MODER6_Msk);    // Analog mode for PF6 = ADC3_IN4
@@ -129,7 +140,7 @@ void MEAS_timer_init(void)
 //    NVIC_ClearPendingIRQ(TIM2_IRQn);    // Clear pending interrupt on line 0
 //    NVIC_EnableIRQ(TIM2_IRQn);          // Enable interrupt line 0 in the NVIC
 
-
+	// DOPP timer
     __HAL_RCC_TIM2_CLK_ENABLE();        // Enable Clock for TIM2
     TIM2->PSC = DOPP_TIM_PRESCALE;           // Prescaler for clock freq. = 1MHz
     TIM2->ARR = DOPP_TIM_TOP;                // Auto reload = counter top value
@@ -139,6 +150,7 @@ void MEAS_timer_init(void)
     NVIC_ClearPendingIRQ(TIM2_IRQn);    // Clear pending interrupt on line 0
     NVIC_EnableIRQ(TIM2_IRQn);          // Enable interrupt line 0 in the NVIC
 
+	// DAC timer
 	__HAL_RCC_TIM5_CLK_ENABLE();
 	TIM5->PSC = DAC_TIM_PRESCALE;
 	TIM5->ARR = DAC_TIM_TOP;
@@ -147,6 +159,16 @@ void MEAS_timer_init(void)
 	TIM5->DIER |= TIM_DIER_UIE;
 	NVIC_ClearPendingIRQ(TIM5_IRQn);
 	NVIC_EnableIRQ(TIM5_IRQn);
+
+	// FMCW timer (TIM1 -- check to see if this works (it's "advanced"))
+	__HAL_RCC_TIM1_CLK_ENABLE();
+	TIM1->PSC = FMCW_TIM_PRESCALE;
+	TIM1->ARR = FMCW_TIM_TOP;
+	TIM1->CR2 |= TIM_CR2_MMS_1;
+
+	TIM1->DIER |= TIM_DIER_UIE;
+	// NVIC_ClearPendingIRQ(TIM1_IRQn);
+	// NVIC_EnableIRQ(TIM1_IRQn);
 }
 
 
@@ -198,6 +220,7 @@ void ADC_reset(void) {
 	RCC->APB2RSTR |= RCC_APB2RSTR_ADCRST;	// Reset ADCs
 	RCC->APB2RSTR &= ~RCC_APB2RSTR_ADCRST;	// Release reset of ADCs
 	TIM2->CR1 &= ~TIM_CR1_CEN;				// Disable timer
+	TIM1->CR1 &= ~TIM_CR1_CEN;
 }
 
 /** ***************************************************************************
@@ -219,6 +242,10 @@ void TIM5_IRQHandler(void)
 	}
 }
 
+// interrupt handler for timer 1 (unused)
+void TIM1_IRQHandler(void) {
+	TIM1->SR &= ~TIM_SR_UIF;
+}
 
 /** ***************************************************************************
  * @brief Interrupt handler for the ADCs
@@ -227,28 +254,57 @@ void TIM5_IRQHandler(void)
  * @n Stops when 2 * ADC_NUMS or 3 * ADC_NUMS samples have been read.
  *****************************************************************************/
 void ADC_IRQHandler(void)
-{
-	if (ADC1->SR & ADC_SR_EOC) {                      // Check if ADC1 end of conversion
-		ADC_samples[ADC1_sample_count++] = ADC1->DR;  // Read input channel 1 only
-		
-        if (ADC1_sample_count >= 2 * ADC_NUMS) {      // Buffer full
-			TIM2->CR1 &= ~TIM_CR1_CEN;	              // Disable timer
-			ADC1->CR2 &= ~ADC_CR2_ADON;               // Disable ADC1
-			ADC_reset();
-			MEAS_data1_ready = true;
+{	
+	if (DOPP_active) { // read from ADC1/3
+		if (ADC1->SR & ADC_SR_EOC) {                      // Check if ADC1 end of conversion
+			ADC_samples[ADC1_sample_count++] = ADC1->DR;  // Read input channel 1 only
+			
+			if (ADC1_sample_count >= 2 * ADC_NUMS) {      // Buffer full
+				TIM2->CR1 &= ~TIM_CR1_CEN;	              // Disable timer
+				ADC1->CR2 &= ~ADC_CR2_ADON;               // Disable ADC1
+				ADC_reset();
+				MEAS_data1_ready = true;
+			}
+		}
+
+		if (ADC3->SR & ADC_SR_EOC) {                      // Check if ADC3 end of conversion
+			ADC_samples[ADC3_sample_count++] = ADC3->DR;  // Read input channel 1 only
+			
+			if (ADC3_sample_count >= 3 * ADC_NUMS) {      // Buffer full
+				TIM2->CR1 &= ~TIM_CR1_CEN;                // Disable timer
+				ADC3->CR2 &= ~ADC_CR2_ADON;               // Disable ADC3
+				ADC_reset();
+				MEAS_data3_ready = true;
+			}
 		}
 	}
 
-    if (ADC3->SR & ADC_SR_EOC) {                      // Check if ADC3 end of conversion
-        ADC_samples[ADC3_sample_count++] = ADC3->DR;  // Read input channel 1 only
-        
-        if (ADC3_sample_count >= 3 * ADC_NUMS) {      // Buffer full
-            TIM2->CR1 &= ~TIM_CR1_CEN;                // Disable timer
-            ADC3->CR2 &= ~ADC_CR2_ADON;               // Disable ADC3
-            ADC_reset();
-            MEAS_data3_ready = true;
-        }
-    }
+	if (FMCW_active) {
+		if (ADC1->SR & ADC_SR_EOC) {                      // Check if ADC1 end of conversion
+			ADC_FMCW_samples[ADC_FMCW_sample_count++] = ADC1->DR;  // Read input channel 1 only
+			
+			if (ADC_FMCW_sample_count >= FMCW_ADC_SAMPLES) {      // Buffer full
+				TIM1->CR1 &= ~TIM_CR1_CEN;	              // Disable timer
+				ADC1->CR2 &= ~ADC_CR2_ADON;               // Disable ADC1
+				ADC_reset();
+				MEAS_data1_ready = true;
+				MEAS_data3_ready = true;
+			}
+		}
+	}
+
+	if (FMCW_active) { // read from ADC2
+		if (ADC2->SR & ADC_SR_EOC) {                      // Check if ADC2 end of conversion
+			ADC_FMCW_samples[ADC_FMCW_sample_count++] = ADC2->DR;  // Read input channel 1 only
+			
+			if (ADC_FMCW_sample_count >= FMCW_ADC_SAMPLES) {      // Buffer full
+				TIM1->CR1 &= ~TIM_CR1_CEN;	              // Disable FMCW timer
+				ADC2->CR2 &= ~ADC_CR2_ADON;               // Disable ADC2
+				ADC_reset();
+				MEAS_data2_ready = true;
+			}
+		}
+	}
 }
 
 /** ***************************************************************************
@@ -270,6 +326,22 @@ void DMA2_Stream1_IRQHandler(void)
 		ADC3->CR2 &= ~ADC_CR2_DMA;                    // Disable DMA mode
 		//ADC_reset();
 		MEAS_data3_ready = true;
+	}
+}
+
+// ADC2 on stream 2 channel 1
+void DMA2_Stream2_IRQHandler(void)
+{
+	if (DMA2->LISR & DMA_LISR_TCIF2) {
+		NVIC_DisableIRQ(DMA2_Stream2_IRQn);
+		NVIC_ClearPendingIRQ(DMA2_Stream2_IRQn);
+		DMA2_Stream2->CR &= ~DMA_SxCR_EN;
+		while (DMA2_Stream2->CR & DMA_SxCR_EN) { ; }
+		DMA2->LIFCR |= DMA_LIFCR_CTCIF2;
+		TIM1->CR1 &= ~TIM_CR1_CEN;
+		ADC2->CR2 &= ~ADC_CR2_ADON;
+		ADC2->CR2 &= ~ADC_CR2_DMA;
+		MEAS_data2_ready = true;
 	}
 }
 
@@ -346,7 +418,7 @@ void ADC_DOPP_scan_init(void) {
 	ADC->CCR |= ADC_CCR_MULTI_1 | ADC_CCR_MULTI_2; // ADC1 and ADC2 simultan.
 	ADC1->CR2 |= (1UL << ADC_CR2_EXTEN_Pos);	// En. ext. trigger on rising e.
 	ADC1->CR2 |= (6UL << ADC_CR2_EXTSEL_Pos);	// Timer 2 TRGO event
-	ADC1->SQR3 |= (11UL << ADC_SQR3_SQ1_Pos);	// Input 11 = first conversion
+	ADC1->SQR3 |= (15UL << ADC_SQR3_SQ1_Pos);	// Input 11 = first conversion
 	ADC2->SQR3 |= (13UL << ADC_SQR3_SQ1_Pos);	// Input 13 = first conversion
 	__HAL_RCC_DMA2_CLK_ENABLE();		// Enable Clock for DMA2
 
@@ -372,6 +444,7 @@ void ADC_DOPP_scan_start(void) {
 	ADC1->CR2 |= ADC_CR2_ADON;			// Enable ADC1
 	ADC2->CR2 |= ADC_CR2_ADON;			// Enable ADC2
 	TIM2->CR1 |= TIM_CR1_CEN;			// Enable timer
+	DOPP_active = true;
 }
 
 
@@ -398,13 +471,24 @@ void DMA2_Stream4_IRQHandler(void)
 		ADC1->CR2 &= ~ADC_CR2_ADON;		// Disable ADC1
 		ADC2->CR2 &= ~ADC_CR2_ADON;		// Disable ADC2
 		ADC->CCR &= ~ADC_CCR_DMA_1;		// Disable DMA mode
-		/* Extract combined samples */
-		for (int32_t i = DOPP_ADC_SAMPLES-1; i >= 0; i--){
-			ADC_DOPP_samples[2*i+1] = (ADC_DOPP_samples[i] >> 16);
-			ADC_DOPP_samples[2*i]   = (ADC_DOPP_samples[i] & 0xffff);
+		if (DOPP_active) {
+			/* Extract combined samples */
+			for (int32_t i = DOPP_ADC_SAMPLES-1; i >= 0; i--){
+				ADC_DOPP_samples[2*i+1] = (ADC_DOPP_samples[i] >> 16);
+				ADC_DOPP_samples[2*i]   = (ADC_DOPP_samples[i] & 0xffff);
+			}
+			MEAS_DOPP_ready = true;
+		}
+		if (FMCW_active) {
+			for (int32_t i=FMCW_ADC_SAMPLES-1; i>=0; i--) {
+				ADC_FMCW_samples[2*i] = (ADC_FMCW_samples[i]&0xffff);
+			}
+			for (int32_t i=0; i<FMCW_ADC_SAMPLES; i++) {
+				ADC_FMCW_samples[i] = ADC_FMCW_samples[i*2];
+			}
+			MEAS_FMCW_ready = true;
 		}
 		ADC_reset();
-		MEAS_DOPP_ready = true;
 	}
 }
 
@@ -417,6 +501,56 @@ void DOPP_copy_data(void) {
 void DOPP_reset_data(void) {
 	for (uint32_t i=0; i<DOPP_ADC_SAMPLES; i++) {
 		ADC_DOPP_samples[i] = 0;
+	}
+}
+
+// FMCW functions
+void ADC_FMCW_scan_init(void) {
+	// TODO this is just using dual mode. we only care about PC4 -> ADC1 though
+	// also swaps out TIM2 for TIM1
+	__HAL_RCC_ADC1_CLK_ENABLE();		// Enable Clock for ADC1
+	__HAL_RCC_ADC2_CLK_ENABLE();		// Enable Clock for ADC2
+	ADC->CCR |= ADC_CCR_DMA_1;			// Enable DMA mode 2 = dual DMA
+	ADC->CCR |= ADC_CCR_MULTI_1 | ADC_CCR_MULTI_2; // ADC1 and ADC2 simultan.
+	ADC1->CR2 |= (1UL << ADC_CR2_EXTEN_Pos);	// En. ext. trigger on rising e.
+	ADC1->CR2 |= (6UL << ADC_CR2_EXTSEL_Pos);	// Timer 5 TRGO event TODO is this different between timers?
+	ADC1->SQR3 |= (14UL << ADC_SQR3_SQ1_Pos);	// Input 14 = first conversion TODO
+	ADC2->SQR3 |= (13UL << ADC_SQR3_SQ1_Pos);	// Input 13 = first conversion
+	__HAL_RCC_DMA2_CLK_ENABLE();		// Enable Clock for DMA2
+
+	DMA2_Stream4->CR &= ~DMA_SxCR_EN;	// Disable the DMA stream 4
+	while (DMA2_Stream4->CR & DMA_SxCR_EN) { ; }	// Wait for DMA to finish
+	DMA2->HIFCR |= DMA_HIFCR_CTCIF4;	// Clear transfer complete interrupt fl.
+
+	DMA2_Stream4->CR |= (0UL << DMA_SxCR_CHSEL_Pos);	// Select channel 0
+	DMA2_Stream4->CR |= DMA_SxCR_PL_1;		// Priority high
+	DMA2_Stream4->CR |= DMA_SxCR_MSIZE_1;	// Memory data size = 32 bit
+	DMA2_Stream4->CR |= DMA_SxCR_PSIZE_1;	// Peripheral data size = 32 bit
+	DMA2_Stream4->CR |= DMA_SxCR_MINC;	// Increment memory address pointer
+	DMA2_Stream4->CR |= DMA_SxCR_TCIE;	// Transfer complete interrupt enable
+	DMA2_Stream4->NDTR = FMCW_ADC_SAMPLES;		// Number of data items to transfer
+	DMA2_Stream4->PAR = (uint32_t)&ADC->CDR;	// Peripheral register address
+	DMA2_Stream4->M0AR = (uint32_t)ADC_FMCW_samples;	// Buffer memory loc. address
+}
+
+void ADC_FMCW_scan_start(void) {
+	DMA2_Stream4->CR |= DMA_SxCR_EN;	// Enable DMA
+	NVIC_ClearPendingIRQ(DMA2_Stream4_IRQn);	// Clear pending DMA interrupt
+	NVIC_EnableIRQ(DMA2_Stream4_IRQn);	// Enable DMA interrupt in the NVIC
+	ADC1->CR2 |= ADC_CR2_ADON;			// Enable ADC1
+	ADC2->CR2 |= ADC_CR2_ADON;			// Enable ADC2
+	TIM1->CR1 |= TIM_CR1_CEN;			// Enable timer
+	FMCW_active = true;
+	ADC_FMCW_sample_count = 0;
+}
+
+void FMCW_copy_data(void) {
+
+}
+
+void FMCW_reset_data(void) {
+	for (uint32_t i=0; i<FMCW_ADC_SAMPLES*2; i++) {
+		ADC_FMCW_samples[i] = 0;
 	}
 }
 

@@ -107,7 +107,7 @@ int main(void) {
 		}
 
 		// DAC_increment();
-		DAC_sweep_start();
+		// DAC_sweep_start();
 
 		HAL_Delay(REFRESH_RATE);					// Wait or sleep
 	}

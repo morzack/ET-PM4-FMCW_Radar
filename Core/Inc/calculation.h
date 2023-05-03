@@ -29,6 +29,8 @@ extern uint32_t fft_negative_out[DOPP_ADC_SAMPLES/2];    ///< samples for channe
 extern uint32_t raw_PC1_data[DOPP_ADC_SAMPLES/2];    ///< samples for channel 3 (PAD 3)
 extern uint32_t raw_PC3_data[DOPP_ADC_SAMPLES/2];    ///< samples for channel 4 (PAD 4)
 
+extern uint32_t raw_PC4_data[FMCW_ADC_SAMPLES];
+
 #define FLOAT_AVG_LENGTH 20
  /******************************************************************************
  * Functions
@@ -38,5 +40,7 @@ void CALC_DOPP_data(void);
 int CALC_DOPP_cfft_peak(bool full_spectrum);
 float CALC_DOPP_cfft_speed(int peak_freq);
 void init_cfft(void);
+
+void FMCW_calc_data(void);
 
 #endif

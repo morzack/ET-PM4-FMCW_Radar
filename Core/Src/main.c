@@ -95,21 +95,35 @@ int main(void) {
 	MEAS_GPIO_analog_init();			// Configure GPIOs in analog mode
 	MEAS_timer_init();					// Configure the timer
 
+	for (int i=0; i<DOPP_ADC_SAMPLES/2; i++) {
+		fft_avg_vec[i] = 0;
+	}
+
 	while (1) {							// Infinitely loop in main function
-		BSP_LED_Toggle(LED3);			// Visual feedback when running
 
 		/* Comment next line if touchscreen interrupt is enabled */
 		// MENU_check_transition();
+		
+		ADC_DOPP_scan_init();
+		// ADC_FMCW_scan_init();
+		DAC_sweep_start();
+		// ADC_FMCW_scan_start();
+		ADC_DOPP_scan_start();
+
+		HAL_Delay(REFRESH_RATE/2);
+		
+		// BSP_LED_Toggle(LED3);			// Visual feedback when running
+
 				
 		DISPLAY_FFT_diagnosis();
-		if (PB_pressed()) {
-			use_fake_dopp_data = !use_fake_dopp_data;
-		}
+		// if (PB_pressed()) {
+			// use_fake_dopp_data = !use_fake_dopp_data;
+		// }
 
 		// DAC_increment();
 		// DAC_sweep_start();
 
-		HAL_Delay(REFRESH_RATE);					// Wait or sleep
+		HAL_Delay(REFRESH_RATE/2);					// Wait or sleep
 	}
 }
 

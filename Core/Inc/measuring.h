@@ -53,9 +53,9 @@ extern uint16_t batt_sample;
 #define DAC_TIM_PRESCALE 0
 
 #define FMCW_ADC_FS             64000
-#define FMCW_TIM_TOP            (635*2)
+#define FMCW_TIM_TOP            (635*2)/2
 #define FMCW_TIM_PRESCALE       1
-#define FMCW_ADC_SAMPLES        (32*2)
+#define FMCW_ADC_SAMPLES        (32*2)*2
 #define FMCW_FREQ_BIN_SIZE      FMCW_ADC_FS/FMCW_ADC_SAMPLES
 
 #define DOPP_ADC_FS FMCW_ADC_FS

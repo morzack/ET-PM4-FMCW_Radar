@@ -85,7 +85,7 @@ extern TS_StateTypeDef TS_State;
 #define BACK_BUTTON_COLOR_PRESSED       0xFF87CEEB          ///< "BACK" button color when pressed in HEX value
 #define BACK_BUTTON_COLOR_IDLE          0xFF00008B
 
-#define LOG_GRAPH_SCALING               10
+#define LOG_GRAPH_SCALING               15
 
 /******************************************************************************
  * Functions

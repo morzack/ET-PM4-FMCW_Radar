@@ -43,6 +43,8 @@ uint32_t raw_PC1_data[DOPP_ADC_SAMPLES/2];			  ///< samples for channel 3 (PAD 3
 uint32_t raw_PC3_data[DOPP_ADC_SAMPLES/2];			  ///< samples for channel 4 (PAD 4)
 uint32_t raw_PC4_data[FMCW_ADC_SAMPLES];
 
+uint32_t fft_avg_vec[DOPP_ADC_SAMPLES/2];
+
 uint8_t batt_lvl; ///< battery voltage level
 
 arm_cfft_instance_f32 cfft_instance;
@@ -115,6 +117,11 @@ void CALC_DOPP_data(void)
 		fft_positive_out[i] = cmplx_mag_out[i];
 		fft_negative_out[i] = cmplx_mag_out[i+DOPP_ADC_SAMPLES/2];
 	}
+
+	// run avg
+	for (int i=0; i<DOPP_ADC_SAMPLES/2; i++) {
+		fft_avg_vec[i] = (uint32_t) (((float) fft_avg_vec[i]) * AVG_WEIGHT_OLD + ((float) fft_positive_out[i]) * AVG_WEIGHT_NEW);
+	}
 }
 
 int CALC_DOPP_cfft_peak(bool full_spectrum) {
@@ -178,26 +185,74 @@ void CALC_battery_level(uint16_t batt_sample)
 	}
 }
 
-void FMCW_calc_data(void) {
-	init_cfft();
+// void FMCW_calc_data(void) {
+// 	init_cfft();
 
-	float sample;
-	float rfft_in[FMCW_ADC_SAMPLES];
-	for (uint32_t n=0; n<FMCW_ADC_SAMPLES; n++) {
-		sample = (float32_t)(ADC_FMCW_samples[n]);
-		rfft_in[n] = sample;
-		raw_PC4_data[n] = sample;
-		raw_PC1_data[n] = sample;
-		raw_PC3_data[n] = 0;
+// 	float sample;
+// 	float rfft_in[FMCW_ADC_SAMPLES];
+// 	for (uint32_t n=0; n<FMCW_ADC_SAMPLES; n++) {
+// 		sample = (float32_t)(ADC_FMCW_samples[n]);
+// 		rfft_in[n] = sample;
+// 		raw_PC4_data[n] = sample;
+// 		raw_PC1_data[n] = sample;
+// 		raw_PC3_data[n] = 0;
+// 	}
+// 	float rfft_out[FMCW_ADC_SAMPLES];
+// 	arm_rfft_fast_f32(&fmcw_rfft_instance, rfft_in, rfft_out, 0);
+	
+// 	float cmplx_mag_out[FMCW_ADC_SAMPLES];
+// 	arm_cmplx_mag_f32(rfft_out, cmplx_mag_out, FMCW_ADC_SAMPLES);
+
+// 	for (int i=0; i<FMCW_ADC_SAMPLES/2; i++) {
+// 		fft_positive_out[i] = cmplx_mag_out[i];
+// 		fft_negative_out[i] = 0;
+// 	}
+// }
+
+void FMCW_calc_data(void) {
+	// NOTE the magic is here
+	
+	init_cfft(); // NOTE idk why i need to init each time for it to work
+	// current theory is something is overwriting the memory for some reason
+
+	float sample_adc1;
+	float sample_adc2;
+	float rfft_in[DOPP_ADC_SAMPLES];
+	for (uint32_t n = 0; n < DOPP_ADC_SAMPLES; n++)
+	{
+		sample_adc1 = (float32_t)(ADC_DOPP_samples[n * 2]);
+		// sample_adc2 = (float32_t)(ADC_DOPP_samples[n * 2 + 1]);
+		sample_adc2 = 0;
+
+		// TODO remove before showing off board
+		// fake data using sin/cos (to test the directionality)
+		if (use_fake_dopp_data) {
+			const float freq = 500;
+			sample_adc1 = 1000 + 1000 * cos(2.0f * 3.14159f * freq * (float)n / (float)DOPP_ADC_FS);
+			sample_adc2 = 1000+1000*sin(2.0f*3.14159f*freq*(float)n/(float)DOPP_ADC_FS);
+		}
+
+		rfft_in[n] = sample_adc1;
+		// cfft_inout[n * 2 + 1] = sample_adc2;
+		if (n < DOPP_ADC_SAMPLES / 2) {
+			raw_PC1_data[n] = sample_adc1;
+			raw_PC3_data[n] = sample_adc1;
+		}
 	}
-	float rfft_out[FMCW_ADC_SAMPLES];
+	float rfft_out[DOPP_ADC_SAMPLES];
 	arm_rfft_fast_f32(&fmcw_rfft_instance, rfft_in, rfft_out, 0);
 	
-	float cmplx_mag_out[FMCW_ADC_SAMPLES];
-	arm_cmplx_mag_f32(rfft_out, cmplx_mag_out, FMCW_ADC_SAMPLES);
+	float cmplx_mag_out[DOPP_ADC_SAMPLES];
+	arm_cmplx_mag_f32(rfft_out, cmplx_mag_out, DOPP_ADC_SAMPLES);
 
-	for (int i=0; i<FMCW_ADC_SAMPLES/2; i++) {
-		fft_positive_out[i] = cmplx_mag_out[i];
+	for (int i = 0; i < DOPP_ADC_SAMPLES/2; i++)
+	{
+		fft_positive_out[i] = cmplx_mag_out[i] / 3;
 		fft_negative_out[i] = 0;
+	}
+
+	// run avg
+	for (int i=0; i<DOPP_ADC_SAMPLES/2; i++) {
+		fft_avg_vec[i] = (uint32_t) (((float) fft_avg_vec[i]) * AVG_WEIGHT_OLD + ((float) fft_positive_out[i]) * AVG_WEIGHT_NEW);
 	}
 }

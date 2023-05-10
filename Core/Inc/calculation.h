@@ -28,8 +28,12 @@ extern uint32_t fft_positive_out[DOPP_ADC_SAMPLES/2];    ///< samples for channe
 extern uint32_t fft_negative_out[DOPP_ADC_SAMPLES/2];    ///< samples for channel 2 (PAD 2)
 extern uint32_t raw_PC1_data[DOPP_ADC_SAMPLES/2];    ///< samples for channel 3 (PAD 3)
 extern uint32_t raw_PC3_data[DOPP_ADC_SAMPLES/2];    ///< samples for channel 4 (PAD 4)
-
 extern uint32_t raw_PC4_data[FMCW_ADC_SAMPLES];
+
+extern uint32_t fft_avg_vec[DOPP_ADC_SAMPLES/2];
+
+#define AVG_WEIGHT_OLD 0.75
+#define AVG_WEIGHT_NEW 0.25
 
 #define FLOAT_AVG_LENGTH 20
  /******************************************************************************

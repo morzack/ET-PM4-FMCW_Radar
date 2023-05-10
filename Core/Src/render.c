@@ -170,7 +170,7 @@ void MENU_draw_graph_grid(uint32_t pos_x, uint32_t pos_y, uint32_t size_x, uint3
  * 
  * @note this function calls MENU_draw_graph and passes the parameters pos_x, pos_y, size_x, size_y
  *****************************************************************************/
-void MENU_draw_graph(uint32_t pos_x, uint32_t pos_y, uint32_t size_x, uint32_t size_y, uint32_t samples[DOPP_ADC_SAMPLES/2], uint32_t color, bool clear)
+void MENU_draw_graph(uint32_t pos_x, uint32_t pos_y, uint32_t size_x, uint32_t size_y, uint32_t samples[DOPP_ADC_SAMPLES/8], uint32_t color, bool clear)
 {
     uint32_t data;
     uint32_t data_last;
@@ -192,7 +192,7 @@ void MENU_draw_graph(uint32_t pos_x, uint32_t pos_y, uint32_t size_x, uint32_t s
         data = size_y;
     }
 
-    for (uint32_t i = 1; i < DOPP_ADC_SAMPLES/2; i++)
+    for (uint32_t i = 1; i < DOPP_ADC_SAMPLES/8; i++)
     {
         data_last = data;
         data = samples[i] * size_y / (1 << ADC_DAC_RES);
@@ -201,16 +201,17 @@ void MENU_draw_graph(uint32_t pos_x, uint32_t pos_y, uint32_t size_x, uint32_t s
             data = size_y;
         }
 
-        BSP_LCD_DrawLine((((i - 1) * size_x / (DOPP_ADC_SAMPLES/2 - 1)) + pos_x), (size_y - data_last + pos_y), (i * size_x / (DOPP_ADC_SAMPLES/2 - 1) + pos_x), (size_y - data + pos_y));
+        BSP_LCD_DrawLine((((i - 1) * size_x / (DOPP_ADC_SAMPLES/8 - 1)) + pos_x), (size_y - data_last + pos_y), (i * size_x / (DOPP_ADC_SAMPLES/8 - 1) + pos_x), (size_y - data + pos_y));
     }
 }
 
 void MENU_draw_graph_log(uint32_t pos_x, uint32_t pos_y, uint32_t size_x, uint32_t size_y, uint32_t samples[DOPP_ADC_SAMPLES/2], uint32_t color, bool clear) {
     // in place, take the log of every sample in samples
-    uint32_t updated_samples[DOPP_ADC_SAMPLES/2];
-    for (uint32_t i = 0; i < DOPP_ADC_SAMPLES/2; i++) {
+    uint32_t updated_samples[DOPP_ADC_SAMPLES/8];
+    updated_samples[0] = 0;
+    for (uint32_t i = 1; i < DOPP_ADC_SAMPLES/8; i++) {
         // 20log10(x) (dB) * 10 for scaling factor on display
-        updated_samples[i] = (uint32_t)(log((double)samples[i])*20)*LOG_GRAPH_SCALING*((double)i/15.0f);
+        updated_samples[i] = (uint32_t)(log((double)samples[i])*20.0f)*LOG_GRAPH_SCALING;//*((double)(sqrt(i))/20.0f);//*(((double)i)/15.0f);
     }
 
     MENU_draw_graph(pos_x, pos_y, size_x, size_y, updated_samples, color, clear);

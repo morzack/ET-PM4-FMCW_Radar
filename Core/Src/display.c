@@ -116,10 +116,19 @@ void DISPLAY_FFT_diagnosis(void)
 	MENU_text[0].text_size = &Font16;
 	MENU_text[0].text_color = MENU_BUTTON_TEXT_COLOR;
 	MENU_text[0].background_color = 0xFF000000;
-    int cfft_peak_freq = CALC_DOPP_cfft_peak(false);
-	snprintf(str, 15, "Peak: %dHz", cfft_peak_freq);
+    float cfft_peak_freq = FMCW_calc_peak();
+	snprintf(str, 15, "Peak: %.1fHz", cfft_peak_freq);
 	strcpy(MENU_text[0].text_line, str);
 	MENU_draw_text(MENU_text[0], LEFT);
+    
+    // MENU_text[1].pos[0] = 10;
+	// MENU_text[1].pos[1] = HEADER_HEIGHT + MENU_text[0].text_size->Height + 10;
+	// MENU_text[1].max_length = 7;
+	// MENU_text[1].text_size = &Font16;
+	// MENU_text[1].text_color = MENU_BUTTON_TEXT_COLOR;
+	// MENU_text[1].background_color = 0xFF000000;
+	// snprintf(str, 15, "Speed: %.1fm/s", CALC_DOPP_cfft_speed(cfft_peak_freq));
+	// strcpy(MENU_text[1].text_line, str);
     
     MENU_text[1].pos[0] = 10;
 	MENU_text[1].pos[1] = HEADER_HEIGHT + MENU_text[0].text_size->Height + 10;
@@ -127,9 +136,11 @@ void DISPLAY_FFT_diagnosis(void)
 	MENU_text[1].text_size = &Font16;
 	MENU_text[1].text_color = MENU_BUTTON_TEXT_COLOR;
 	MENU_text[1].background_color = 0xFF000000;
-	snprintf(str, 15, "Speed: %.1fm/s", CALC_DOPP_cfft_speed(cfft_peak_freq));
+	snprintf(str, 15, "dist: %.1fm", FMCW_calc_distance(cfft_peak_freq));
 	strcpy(MENU_text[1].text_line, str);
+
 	MENU_draw_text(MENU_text[1], LEFT);
+	// MENU_draw_text(MENU_text[1], LEFT);
 
     DISPLAY_graph_FFT_data();
 }
@@ -165,7 +176,7 @@ void DISPLAY_graph_FFT_data(void)
         // MENU_draw_graph(10, HEADER_HEIGHT + 40, 220, 100, fft_negative_out, 0xFFFF0000, false);
 
         // draw raw voltage data
-        MENU_draw_graph(10, HEADER_HEIGHT+40+100+10, 220, 100, raw_PC1_data, 0xFF0000FF, true);
-        MENU_draw_graph(10, HEADER_HEIGHT+40+100+10, 220, 100, raw_PC3_data, 0xFFFF0000, false);
+        MENU_draw_graph(10, HEADER_HEIGHT+40+100+10, 220, 100, raw_PC3_data, 0xFF0000FF, true);
+        // MENU_draw_graph(10, HEADER_HEIGHT+40+100+10, 220, 100, raw_PC3_data, 0xFFFF0000, false);
     }
 }

@@ -37,18 +37,19 @@
 /******************************************************************************
  * Variables
  *****************************************************************************/
-uint32_t fft_positive_out[DOPP_ADC_SAMPLES / 2]; ///< samples for channel 1 (PAD 1)
+uint32_t fft_positive_out[DOPP_ADC_SAMPLES]; ///< samples for channel 1 (PAD 1)
 uint32_t fft_negative_out[DOPP_ADC_SAMPLES / 2]; ///< samples for channel 2 (PAD 2)
 uint32_t raw_PC1_data[DOPP_ADC_SAMPLES/2];			  ///< samples for channel 3 (PAD 3)
 uint32_t raw_PC3_data[DOPP_ADC_SAMPLES/2];			  ///< samples for channel 4 (PAD 4)
 uint32_t raw_PC4_data[FMCW_ADC_SAMPLES];
 
-uint32_t fft_avg_vec[DOPP_ADC_SAMPLES/2];
+uint32_t fft_avg_vec[DOPP_ADC_SAMPLES];
 
 uint8_t batt_lvl; ///< battery voltage level
 
 arm_cfft_instance_f32 cfft_instance;
 arm_rfft_instance_f32 fmcw_rfft_instance;
+arm_rfft_fast_instance_f32 fmcw_rfft_fast_instance;
 
 /******************************************************************************
  * Functions
@@ -73,7 +74,8 @@ void CALC_separate_data(uint32_t samples[])
 void init_cfft(void)
 {
 	arm_cfft_init_f32(&cfft_instance, DOPP_ADC_SAMPLES);
-	arm_rfft_fast_init_f32(&fmcw_rfft_instance, FMCW_ADC_SAMPLES);
+//	arm_rfft_fast_init_f32(&fmcw_rfft_instance, FMCW_ADC_SAMPLES);
+	arm_rfft_fast_init_f32(&fmcw_rfft_fast_instance, FMCW_ADC_SAMPLES);
 }
 
 void CALC_DOPP_data(void)
@@ -122,12 +124,16 @@ void CALC_DOPP_data(void)
 	for (int i=0; i<DOPP_ADC_SAMPLES/2; i++) {
 		fft_avg_vec[i] = (uint32_t) (((float) fft_avg_vec[i]) * AVG_WEIGHT_OLD + ((float) fft_positive_out[i]) * AVG_WEIGHT_NEW);
 	}
+
+	for (int i=0; i<DOPP_ADC_SAMPLES/2; i++) {
+		raw_PC1_data[i] *= 1.2f;
+	}
 }
 
 int CALC_DOPP_cfft_peak(bool full_spectrum) {
 	float peak_val = 0;
 	int peak_idx = -1;
-	int start_idx = DOPP_ADC_SAMPLES/4;
+	int start_idx = 3;
 
 	for (int i=start_idx; i<DOPP_ADC_SAMPLES/2; i++) { // ignore 0hz bin, since that has a high value
 		if (fft_positive_out[i]  > peak_val) {
@@ -240,19 +246,65 @@ void FMCW_calc_data(void) {
 		}
 	}
 	float rfft_out[DOPP_ADC_SAMPLES];
-	arm_rfft_fast_f32(&fmcw_rfft_instance, rfft_in, rfft_out, 0);
+	arm_rfft_fast_f32(&fmcw_rfft_fast_instance, rfft_in, rfft_out, 0);
 	
-	float cmplx_mag_out[DOPP_ADC_SAMPLES];
-	arm_cmplx_mag_f32(rfft_out, cmplx_mag_out, DOPP_ADC_SAMPLES);
+	float cmplx_mag_out[DOPP_ADC_SAMPLES/2];
+	arm_cmplx_mag_f32(rfft_out, cmplx_mag_out, DOPP_ADC_SAMPLES/2);
 
-	for (int i = 0; i < DOPP_ADC_SAMPLES/2; i++)
+	for (int i = 0; i < DOPP_ADC_SAMPLES; i++)
 	{
 		fft_positive_out[i] = cmplx_mag_out[i] / 3;
 		fft_negative_out[i] = 0;
 	}
 
-	// run avg
+	float log_mag[DOPP_ADC_SAMPLES/2];
 	for (int i=0; i<DOPP_ADC_SAMPLES/2; i++) {
-		fft_avg_vec[i] = (uint32_t) (((float) fft_avg_vec[i]) * AVG_WEIGHT_OLD + ((float) fft_positive_out[i]) * AVG_WEIGHT_NEW);
+		log_mag[i] = 20.0f*log10(cmplx_mag_out[i]);
 	}
+
+	float scaled_log_mag[DOPP_ADC_SAMPLES/2];
+	float avg_mag = 0;
+	for (int i=0; i<DOPP_ADC_SAMPLES/2; i++) {
+		scaled_log_mag[i] = (20.0f*log10((float32_t)i) + log_mag[i])*80.0f-5000.0f;//+500.0f;
+		avg_mag += scaled_log_mag[i];
+	}
+	// avg_mag /= DOPP_ADC_SAMPLES/2;
+	// for (int i=0; i<DOPP_ADC_SAMPLES/2; i++) {
+	// 	// scaled_log_mag[i] -= avg_mag/2;
+	// 	scaled_log_mag[i] *= 100.0f;
+	// }
+	
+	// for (int i=0; i<DOPP_ADC_SAMPLES/2; i++) {
+	// 	scaled_log_mag[i] = (20.0f*log10((float32_t)i) + log_mag[i]);
+	// }
+
+
+	// run avg
+	for (int i=0; i<DOPP_ADC_SAMPLES; i++) {
+		// fft_avg_vec[i] = (uint32_t) (((float) fft_avg_vec[i]) * AVG_WEIGHT_OLD + ((float) fft_positive_out[i]) * AVG_WEIGHT_NEW);
+		fft_avg_vec[i] = (uint32_t) (((float) fft_avg_vec[i]) * AVG_WEIGHT_OLD + ((float) scaled_log_mag[i]) * AVG_WEIGHT_NEW);
+	}
+}
+
+float FMCW_calc_peak() {
+	float peak_val = 0;
+	int peak_idx = -1;
+	int start_idx = 3;
+
+	for (int i=start_idx; i<FMCW_ADC_SAMPLES/2; i++) { // ignore 0hz bin, since that has a high value
+		if (fft_avg_vec[i]  > peak_val) {
+			peak_val = fft_avg_vec[i];
+			peak_idx = i;
+		}
+	}
+
+	if (peak_idx == -1) {
+		return 0;
+	}
+	return peak_idx * FMCW_FREQ_BIN_SIZE*2;
+}
+
+float FMCW_calc_distance(float peak_freq) {
+	float dist = peak_freq / 1734.5f;
+	return dist;
 }

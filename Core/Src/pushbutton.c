@@ -1,3 +1,13 @@
+
+/*
+ * DSP processing and FFT handling for measured data
+ * 
+ * Author:	John Kesler	<keslejoh@students.zhaw.ch>
+ * 			Linus Leuch	<leuchlin@students.zhaw.ch>
+ * 			Simon Meli	<melisim1@students.zhaw.ch>
+ */
+
+
 /** ***************************************************************************
  * @file
  * @brief USER pushbutton

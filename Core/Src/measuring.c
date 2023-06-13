@@ -1,46 +1,23 @@
-/** ***************************************************************************
- * @file
- * @brief Measuring voltages with the ADC(s) in different configurations
- *
- *
- * Configures different ADC (Analog to Digital Converter) modes
- * ==============================================================
- *
- * - ADC in single conversion mode
- * - ADC combined with DMA (Direct Memory Access) to fill a buffer
- * - Scan mode = sequential sampling of two or three inputs by one ADC
- *
- * Peripherals @ref HowTo
- *
- * @image html demo_screenshot_board.jpg
+/*
+ * Obtain data from ACDs + write to DAC to generate sweep
  * 
+ * Author:	John Kesler	<keslejoh@students.zhaw.ch>
+ * 			Linus Leuch	<leuchlin@students.zhaw.ch>
+ * 			Simon Meli	<melisim1@students.zhaw.ch>
  * 
- * @anchor HowTo
- * How to Configure the Peripherals: ADC, TIMER and DMA
- * ====================================================
- *
- * All the peripherals are accessed by writing to or reading from registers.
- * From the programmer’s point of view this is done exactly as
- * writing or reading the value of a variable.
- * @n Writing to a register configures the HW of the associated peripheral
- * to do what is required.
- * @n Reading from a registers gets status and data from the HW peripheral.
- *
- * The information on which bits have to be set to get a specific behavior
- * is documented in the <b>reference manual</b> of the microcontroller.
- *
- *
- * ----------------------------------------------------------------------------
- * @author Hanspeter Hochreutener, hhrt@zhaw.ch,
- * @n Linus Leuch, leuchlin@students.zhaw.ch,
- * @n Simon Meli, melisim1@students.zhaw.ch
- * @date 22.12.2021
- *****************************************************************************/
+ * Timers:
+ * 			TIM1	used for FMCW
+ * 			TIM2	used for DOPP
+ * 			TIM5	used for DAC FMCW sweep
+ * ADCs/pins:
+ * 			PC1 -> ADC1 -> DMA ch0str4 -> DOPP input
+ * 			PC3 -> ADC2 -> DMA ch1str3 -> DOPP quadrature input
+ * 			PC5 -> ADC1 -> DMA ch0str4 -> FMCW input
+ * 			(fmcw is actually read in dual mode w/ PC3 as the other)
+ * 			(pc3 is just ignored during signal processing)
+ * 			
+ */
 
-
-/******************************************************************************
- * Includes
- *****************************************************************************/
 #include <stdio.h>
 #include "stm32f4xx.h"
 #include "stm32f429i_discovery.h"
@@ -49,14 +26,6 @@
 
 #include "measuring.h"
 
-/******************************************************************************
- * Defines
- *****************************************************************************/
-
-
-/******************************************************************************
- * Variables
- *****************************************************************************/
 bool MEAS_data1_ready = false;                      ///< New data from ADC 1 is ready
 bool MEAS_data2_ready = false;
 bool MEAS_data3_ready = false;                      ///< New data from ADC 3 is ready
@@ -86,12 +55,6 @@ bool DOPP_active = false;
 bool FMCW_active = false;
 
 bool use_fake_dopp_data = false;
-
-
-/******************************************************************************
- * Functions
- *****************************************************************************/
-
 
 /** ***************************************************************************
  * @brief Configure GPIOs in analog mode.
@@ -131,15 +94,6 @@ void MEAS_GPIO_analog_init(void)
  *****************************************************************************/
 void MEAS_timer_init(void)
 {
-//    __HAL_RCC_TIM2_CLK_ENABLE();        // Enable Clock for TIM2
-//    TIM2->PSC = TIM_PRESCALE;           // Prescaler for clock freq. = 1MHz
-//    TIM2->ARR = TIM_TOP;                // Auto reload = counter top value
-//    TIM2->CR2 |= TIM_CR2_MMS_1;         // TRGO on update
-//    /* If timer interrupt is not needed, comment the following lines */
-//    TIM2->DIER |= TIM_DIER_UIE;         // Enable update interrupt
-//    NVIC_ClearPendingIRQ(TIM2_IRQn);    // Clear pending interrupt on line 0
-//    NVIC_EnableIRQ(TIM2_IRQn);          // Enable interrupt line 0 in the NVIC
-
 	// DOPP timer
     __HAL_RCC_TIM2_CLK_ENABLE();        // Enable Clock for TIM2
     TIM2->PSC = DOPP_TIM_PRESCALE;           // Prescaler for clock freq. = 1MHz

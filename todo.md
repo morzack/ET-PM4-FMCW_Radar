@@ -4,6 +4,7 @@
 - code cleanup
 	- split out FMCW and DOPP properly
 	- add method to toggle between two modes using user button
+	- add totally unneeded comments
 - update graphing functions to work with dynamic scale
 
 ## mid

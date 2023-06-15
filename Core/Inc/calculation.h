@@ -40,9 +40,6 @@ extern uint32_t fft_avg_vec[DOPP_ADC_SAMPLES];
  * Functions
  *****************************************************************************/
 void CALC_battery_level(uint16_t batt_sample);
-void CALC_DOPP_data(void);
-int CALC_DOPP_cfft_peak(bool full_spectrum);
-float CALC_DOPP_cfft_speed(int peak_freq);
 void init_cfft(void);
 
 void FMCW_calc_data(void);

@@ -87,21 +87,11 @@ void DAC_reset(void);
 void DAC_init(void);
 void DAC_increment(void);
 void ADC_reset(void);
-void reset_data(void);
-void copy_data(void);
 bool batteryStatus(void);
 
 void ADC_DOPP_scan_init(void);
 void ADC_DOPP_scan_start(void);
-void DOPP_copy_data(void);
-void DOPP_reset_data(void);
 
-void ADC_FMCW_scan_init(void);
-void ACD_FMCW_scan_start(void);
-void FMCW_copy_data(void);
-void FMCW_reset_data(void);
-
-void DAC_sweep_init(void);
 void DAC_sweep_start(void);
 
 

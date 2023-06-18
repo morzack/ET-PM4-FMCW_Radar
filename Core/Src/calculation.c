@@ -21,12 +21,14 @@
 #include "main.h"
 #include "render.h"
 
-uint32_t fft_positive_out[DOPP_ADC_SAMPLES];
-uint32_t fft_negative_out[DOPP_ADC_SAMPLES / 2];
-uint32_t raw_PC1_data[DOPP_ADC_SAMPLES / 2];
-uint32_t raw_PC3_data[DOPP_ADC_SAMPLES / 2];
+uint32_t fft_positive_out[FMCW_ADC_SAMPLE_COUNT];
+uint32_t fft_negative_out[FMCW_ADC_SAMPLE_COUNT];
+uint32_t raw_PC1_stream[FMCW_ADC_SAMPLE_COUNT / 2];
+uint32_t raw_PC3_stream[FMCW_ADC_SAMPLE_COUNT / 2];
+uint32_t raw_PC5_stream[FMCW_ADC_SAMPLE_COUNT / 2];
 
-uint32_t fft_avg_vec[DOPP_ADC_SAMPLES];
+// uint32_t fft_avg_vec_dopp[FMCW_ADC_SAMPLE_COUNT];
+uint32_t fft_avg_vec_fmcw[FMCW_ADC_SAMPLE_COUNT];
 
 uint8_t batt_lvl;
 
@@ -35,8 +37,8 @@ arm_rfft_fast_instance_f32 fmcw_rfft_fast_instance;
 
 void init_cfft(void)
 {
-	arm_cfft_init_f32(&cfft_instance, DOPP_ADC_SAMPLES);
-	arm_rfft_fast_init_f32(&fmcw_rfft_fast_instance, DOPP_ADC_SAMPLES);
+	arm_cfft_init_f32(&cfft_instance, FMCW_ADC_SAMPLE_COUNT);
+	arm_rfft_fast_init_f32(&fmcw_rfft_fast_instance, FMCW_ADC_SAMPLE_COUNT);
 }
 
 /** ***************************************************************************
@@ -63,51 +65,51 @@ void CALC_battery_level(uint16_t batt_sample)
 
 void FMCW_calc_data(void)
 {
+	// TODO still check indexes throughout here...
 	init_cfft(); // TODO idk why i need to init each time for it to work
 	// current theory is something is overwriting the memory for some reason
 
-	float sample_adc1;
-	float rfft_in[DOPP_ADC_SAMPLES];
-	for (uint32_t n = 0; n < DOPP_ADC_SAMPLES; n++)
+	float fmcw_sample;
+	float rfft_in[FMCW_ADC_SAMPLE_COUNT];
+	for (uint32_t n = 0; n < FMCW_ADC_SAMPLE_COUNT; n++)
 	{
-		sample_adc1 = (float32_t)(ADC_DOPP_samples[n * 2]);
-		rfft_in[n] = sample_adc1;
+		fmcw_sample = (float32_t)(FMCW_ADC_samples[n * 2]);
+		rfft_in[n] = fmcw_sample;
 
-		if (n < DOPP_ADC_SAMPLES / 2)
+		if (n < FMCW_ADC_SAMPLE_COUNT / 2)
 		{
-			raw_PC1_data[n] = sample_adc1;
-			raw_PC3_data[n] = 0;
+			raw_PC5_stream[n] = fmcw_sample;
 		}
 	}
-	float rfft_out[DOPP_ADC_SAMPLES];
+	float rfft_out[FMCW_ADC_SAMPLE_COUNT];
 	arm_rfft_fast_f32(&fmcw_rfft_fast_instance, rfft_in, rfft_out, 0);
 
-	float cmplx_mag_out[DOPP_ADC_SAMPLES / 2];
-	arm_cmplx_mag_f32(rfft_out, cmplx_mag_out, DOPP_ADC_SAMPLES / 2);
+	float cmplx_mag_out[FMCW_ADC_SAMPLE_COUNT / 2];
+	arm_cmplx_mag_f32(rfft_out, cmplx_mag_out, FMCW_ADC_SAMPLE_COUNT / 2);
 
-	for (int i = 0; i < DOPP_ADC_SAMPLES; i++)
+	for (int i = 0; i < FMCW_ADC_SAMPLE_COUNT; i++)
 	{
 		fft_positive_out[i] = cmplx_mag_out[i] / 3;
 		fft_negative_out[i] = 0;
 	}
 
-	float log_mag[DOPP_ADC_SAMPLES / 2];
-	for (int i = 0; i < DOPP_ADC_SAMPLES / 2; i++)
+	float log_mag[FMCW_ADC_SAMPLE_COUNT / 2];
+	for (int i = 0; i < FMCW_ADC_SAMPLE_COUNT / 2; i++)
 	{
 		log_mag[i] = 20.0f * log10(cmplx_mag_out[i]);
 	}
 
-	float scaled_log_mag[DOPP_ADC_SAMPLES / 2];
-	for (int i = 0; i < DOPP_ADC_SAMPLES / 2; i++)
+	float scaled_log_mag[FMCW_ADC_SAMPLE_COUNT / 2];
+	for (int i = 0; i < FMCW_ADC_SAMPLE_COUNT / 2; i++)
 	{
 		// apply gain based on frequency (linear w/ freq)
 		scaled_log_mag[i] = (20.0f * log10((float32_t)i) + log_mag[i]) * 80.0f - 5000.0f;
 	}
 
 	// run avg
-	for (int i = 0; i < DOPP_ADC_SAMPLES; i++)
+	for (int i = 0; i < FMCW_ADC_SAMPLE_COUNT; i++)
 	{
-		fft_avg_vec[i] = (uint32_t)(((float)fft_avg_vec[i]) * AVG_WEIGHT_OLD + ((float)scaled_log_mag[i]) * AVG_WEIGHT_NEW);
+		fft_avg_vec_fmcw[i] = (uint32_t)(((float)fft_avg_vec_fmcw[i]) * AVG_WEIGHT_OLD + ((float)scaled_log_mag[i]) * AVG_WEIGHT_NEW);
 	}
 }
 
@@ -116,12 +118,13 @@ float FMCW_calc_peak()
 	float peak_val = 0;
 	int peak_idx = -1;
 	int start_idx = 3;
+	int stop_idx = FMCW_ADC_SAMPLE_COUNT/4;
 
-	for (int i = start_idx; i < DOPP_ADC_SAMPLES; i++)
+	for (int i = start_idx; i < stop_idx; i++)
 	{ // ignore 0hz bin, since that has a high value
-		if (fft_avg_vec[i] > peak_val)
+		if (fft_avg_vec_fmcw[i] > peak_val)
 		{
-			peak_val = fft_avg_vec[i];
+			peak_val = fft_avg_vec_fmcw[i];
 			peak_idx = i;
 		}
 	}
@@ -130,7 +133,7 @@ float FMCW_calc_peak()
 	{
 		return 0;
 	}
-	return peak_idx * DOPP_FREQ_BIN_SIZE * 2;
+	return peak_idx * FMCW_FREQ_BIN_SIZE * 2;
 }
 
 float FMCW_calc_distance(float peak_freq)

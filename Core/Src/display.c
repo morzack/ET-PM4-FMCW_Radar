@@ -115,13 +115,13 @@ void DISPLAY_graph_FFT_data(void)
 {
     char str[16];
 
-    while (!MEAS_DOPP_ready)
+    while (!FMCW_MEAS_ready)
     {
         ;
     }
-    if (MEAS_DOPP_ready)
+    if (FMCW_MEAS_ready)
     {
-        MEAS_DOPP_ready = false;
+        FMCW_MEAS_ready = false;
         // while (!MEAS_FMCW_ready) { ; }
         // if (MEAS_FMCW_ready) {
         //     MEAS_FMCW_ready = false;
@@ -133,11 +133,11 @@ void DISPLAY_graph_FFT_data(void)
         // draw FFT data
         // MENU_draw_graph_log(10, HEADER_HEIGHT + 40, 220, 100, fft_positive_out, 0xFF0000FF, true);
         // MENU_draw_graph_log(10, HEADER_HEIGHT + 40, 220, 100, fft_negative_out, 0xFFFF0000, false);
-        MENU_draw_graph(10, HEADER_HEIGHT + 40, 220, 100, fft_avg_vec, 0xFF0000FF, true);
+        MENU_draw_graph(10, HEADER_HEIGHT + 40, 220, 100, fft_avg_vec_fmcw, 0xFF0000FF, true);
         // MENU_draw_graph(10, HEADER_HEIGHT + 40, 220, 100, fft_negative_out, 0xFFFF0000, false);
 
         // draw raw voltage data
-        MENU_draw_graph(10, HEADER_HEIGHT + 40 + 100 + 10, 220, 100, raw_PC1_data, 0xFF0000FF, true);
+        MENU_draw_graph(10, HEADER_HEIGHT + 40 + 100 + 10, 220, 100, raw_PC5_stream, 0xFF0000FF, true);
         // MENU_draw_graph(10, HEADER_HEIGHT+40+100+10, 220, 100, raw_PC3_data, 0xFFFF0000, false);
     }
 }

@@ -61,9 +61,9 @@ int main(void)
 	MEAS_GPIO_analog_init(); // Configure GPIOs in analog mode
 	MEAS_timer_init();		 // Configure the timer
 
-	for (int i = 0; i < DOPP_ADC_SAMPLES / 2; i++)
+	for (int i = 0; i < FMCW_ADC_SAMPLE_COUNT / 2; i++)
 	{
-		fft_avg_vec[i] = 0;
+		fft_avg_vec_fmcw[i] = 0;
 	}
 
 	while (1)
@@ -73,9 +73,9 @@ int main(void)
 		/* Comment next line if touchscreen interrupt is enabled */
 		// MENU_check_transition();
 
-		ADC_DOPP_scan_init();
+		FMCW_ADC_scan_init();
 		DAC_sweep_start();
-		ADC_DOPP_scan_start();
+		FMCW_ADC_scan_start();
 
 		HAL_Delay(REFRESH_RATE / 2);
 

@@ -79,8 +79,8 @@ void MENU_draw_text(MENU_text_t text, MENU_text_align_t align);
 
 void MENU_draw_graph_grid(uint32_t pos_x, uint32_t pos_y, uint32_t size_x, uint32_t size_y, uint32_t div_x, uint32_t div_y);
 
-void MENU_draw_graph(uint32_t pos_x, uint32_t pos_y, uint32_t size_x, uint32_t size_y, uint32_t samples[DOPP_ADC_SAMPLES * 2], uint32_t color, bool clear);
-void MENU_draw_graph_log(uint32_t pos_x, uint32_t pos_y, uint32_t size_x, uint32_t size_y, uint32_t samples[DOPP_ADC_SAMPLES * 2], uint32_t color, bool clear);
+void MENU_draw_graph(uint32_t pos_x, uint32_t pos_y, uint32_t size_x, uint32_t size_y, uint32_t samples[FMCW_ADC_SAMPLE_COUNT * 2], uint32_t color, bool clear);
+void MENU_draw_graph_log(uint32_t pos_x, uint32_t pos_y, uint32_t size_x, uint32_t size_y, uint32_t samples[FMCW_ADC_SAMPLE_COUNT * 2], uint32_t color, bool clear);
 
 void MENU_clear_screen(void);
 void MENU_update_buttons(TS_StateTypeDef TS_State, uint16_t n);

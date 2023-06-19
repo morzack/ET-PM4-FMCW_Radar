@@ -24,6 +24,9 @@
 #define FMCW_TIM_PRESCALER 1
 #define FMCW_ADC_SAMPLE_COUNT 64
 #define FMCW_FREQ_BIN_SIZE FMCW_ADC_SAMPLING_FREQ / FMCW_ADC_SAMPLE_COUNT
+#define FMCW_DIST_SCALING_FACTOR 1735.5f
+#define FMCW_MAX_DIST 5 // m
+#define FMCW_MAX_BIN (FMCW_MAX_DIST * FMCW_DIST_SCALING_FACTOR) / (FMCW_FREQ_BIN_SIZE)
 
 extern bool FMCW_MEAS_ready;
 extern uint32_t FMCW_ADC_samples[FMCW_ADC_SAMPLE_COUNT * 2]; // *2 to handle interleaving for dual mode (that we don't use)

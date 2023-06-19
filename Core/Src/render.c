@@ -137,65 +137,6 @@ void MENU_draw_graph_grid(uint32_t pos_x, uint32_t pos_y, uint32_t size_x, uint3
     }
 }
 
-/*
- * draw a graph directly from provided samples (a buffer of some predetermined length)
- * TODO make work using a pointer to samples + # of samples to render
- */
-void MENU_draw_graph(uint32_t pos_x, uint32_t pos_y, uint32_t size_x, uint32_t size_y, uint32_t samples[FMCW_ADC_SAMPLE_COUNT], uint32_t color, bool clear)
-{
-    uint32_t data;
-    uint32_t data_last;
-
-    if (clear)
-    {
-        BSP_LCD_SetTextColor(LCD_COLOR_BLACK);
-        BSP_LCD_FillRect((pos_x - 1), pos_y, (size_x + 1), size_y);
-        MENU_draw_graph_grid(pos_x, pos_y, (size_x - 1), (size_y - 1), 5, 4);
-    }
-    BSP_LCD_SetTextColor(color);
-
-    size_x--;
-    size_y--;
-
-    data = samples[0];
-    data = data * size_y / (1 << ADC_RESOLUTION);
-
-    if (data >= size_y)
-    {
-        data = size_y;
-    }
-
-    for (uint32_t i = 1; i < FMCW_ADC_SAMPLE_COUNT / 2; i++)
-    {
-        data_last = data;
-        data = samples[i] * size_y / (1 << ADC_RESOLUTION);
-
-        if (data >= size_y)
-        {
-            data = size_y;
-        }
-
-        BSP_LCD_DrawLine((((i - 1) * size_x / (FMCW_ADC_SAMPLE_COUNT / 2 - 1)) + pos_x), (size_y - data_last + pos_y), (i * size_x / (FMCW_ADC_SAMPLE_COUNT / 2 - 1) + pos_x), (size_y - data + pos_y));
-    }
-}
-
-/*
- * preprocess graph data to render the graph in a logarithmic scale
- */
-void MENU_draw_graph_log(uint32_t pos_x, uint32_t pos_y, uint32_t size_x, uint32_t size_y, uint32_t samples[FMCW_ADC_SAMPLE_COUNT / 2], uint32_t color, bool clear)
-{
-    // in place, take the log of every sample in samples
-    uint32_t updated_samples[FMCW_ADC_SAMPLE_COUNT];
-    updated_samples[0] = 0;
-    for (uint32_t i = 0; i < FMCW_ADC_SAMPLE_COUNT; i++)
-    {
-        // 20log10(x) (dB) * 10 for scaling factor on display
-        updated_samples[i] = (uint32_t)(log((double)samples[i]) * 20.0f) * LOG_GRAPH_SCALING; //*(((double)i)/15.0f);
-    }
-
-    MENU_draw_graph(pos_x, pos_y, size_x, size_y, updated_samples, color, clear);
-}
-
 /******************************************************************************
  * @brief clears the screen
  *
@@ -268,4 +209,46 @@ void MENU_check_transition(void)
     TS_State.X = BSP_LCD_GetXSize() - TS_State.X; // Invert the x-axis
     TS_State.Y = BSP_LCD_GetYSize() - TS_State.Y; // Invert the y-axis
 #endif
+}
+
+/*
+ * draw a graph from a memory buffer to the screen
+ * samples is pointer to buffer, length is length of points to grab
+ */
+void MENU_draw_graph_ptr(uint32_t pos_x, uint32_t pos_y, uint32_t size_x, uint32_t size_y, uint32_t *samples, uint32_t length, uint32_t color, bool clear)
+{
+    uint32_t data;
+    uint32_t data_last;
+
+    if (clear)
+    {
+        BSP_LCD_SetTextColor(LCD_COLOR_BLACK);
+        BSP_LCD_FillRect((pos_x - 1), pos_y, (size_x + 1), size_y);
+        MENU_draw_graph_grid(pos_x, pos_y, (size_x - 1), (size_y - 1), 5, 4);
+    }
+    BSP_LCD_SetTextColor(color);
+
+    size_x--;
+    size_y--;
+
+    data = samples[0];
+    data = data * size_y / (1 << ADC_RESOLUTION);
+
+    if (data >= size_y)
+    {
+        data = size_y;
+    }
+
+    for (uint32_t i = 1; i < length; i++)
+    {
+        data_last = data;
+        data = samples[i] * size_y / (1 << ADC_RESOLUTION);
+
+        if (data >= size_y)
+        {
+            data = size_y;
+        }
+
+        BSP_LCD_DrawLine((((i - 1) * size_x / (length - 1)) + pos_x), (size_y - data_last + pos_y), (i * size_x / (length - 1) + pos_x), (size_y - data + pos_y));
+    }
 }

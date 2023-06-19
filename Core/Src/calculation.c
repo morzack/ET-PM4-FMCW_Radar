@@ -21,23 +21,21 @@
 #include "main.h"
 #include "render.h"
 
-uint32_t fft_positive_out[FMCW_ADC_SAMPLE_COUNT];
-uint32_t fft_negative_out[FMCW_ADC_SAMPLE_COUNT];
 uint32_t raw_PC1_stream[FMCW_ADC_SAMPLE_COUNT / 2];
 uint32_t raw_PC3_stream[FMCW_ADC_SAMPLE_COUNT / 2];
-uint32_t raw_PC5_stream[FMCW_ADC_SAMPLE_COUNT / 2];
+uint32_t raw_PC5_stream[FMCW_ADC_SAMPLE_COUNT];
 
-// uint32_t fft_avg_vec_dopp[FMCW_ADC_SAMPLE_COUNT];
-uint32_t fft_avg_vec_fmcw[FMCW_ADC_SAMPLE_COUNT];
+uint32_t fft_avg_vec_dopp[FMCW_ADC_SAMPLE_COUNT];
+uint32_t fft_avg_vec_fmcw[FMCW_ADC_SAMPLE_COUNT / 2];
 
 uint8_t batt_lvl;
 
-arm_cfft_instance_f32 cfft_instance;
+arm_cfft_instance_f32 dopp_cfft_instance;
 arm_rfft_fast_instance_f32 fmcw_rfft_fast_instance;
 
 void init_cfft(void)
 {
-	arm_cfft_init_f32(&cfft_instance, FMCW_ADC_SAMPLE_COUNT);
+	arm_cfft_init_f32(&dopp_cfft_instance, FMCW_ADC_SAMPLE_COUNT);
 	arm_rfft_fast_init_f32(&fmcw_rfft_fast_instance, FMCW_ADC_SAMPLE_COUNT);
 }
 
@@ -65,9 +63,7 @@ void CALC_battery_level(uint16_t batt_sample)
 
 void FMCW_calc_data(void)
 {
-	// TODO still check indexes throughout here...
-	init_cfft(); // TODO idk why i need to init each time for it to work
-	// current theory is something is overwriting the memory for some reason
+	init_cfft();
 
 	float fmcw_sample;
 	float rfft_in[FMCW_ADC_SAMPLE_COUNT];
@@ -75,23 +71,13 @@ void FMCW_calc_data(void)
 	{
 		fmcw_sample = (float32_t)(FMCW_ADC_samples[n * 2]);
 		rfft_in[n] = fmcw_sample;
-
-		if (n < FMCW_ADC_SAMPLE_COUNT / 2)
-		{
-			raw_PC5_stream[n] = fmcw_sample;
-		}
+		raw_PC5_stream[n] = fmcw_sample;
 	}
 	float rfft_out[FMCW_ADC_SAMPLE_COUNT];
 	arm_rfft_fast_f32(&fmcw_rfft_fast_instance, rfft_in, rfft_out, 0);
 
 	float cmplx_mag_out[FMCW_ADC_SAMPLE_COUNT / 2];
 	arm_cmplx_mag_f32(rfft_out, cmplx_mag_out, FMCW_ADC_SAMPLE_COUNT / 2);
-
-	for (int i = 0; i < FMCW_ADC_SAMPLE_COUNT; i++)
-	{
-		fft_positive_out[i] = cmplx_mag_out[i] / 3;
-		fft_negative_out[i] = 0;
-	}
 
 	float log_mag[FMCW_ADC_SAMPLE_COUNT / 2];
 	for (int i = 0; i < FMCW_ADC_SAMPLE_COUNT / 2; i++)
@@ -107,7 +93,7 @@ void FMCW_calc_data(void)
 	}
 
 	// run avg
-	for (int i = 0; i < FMCW_ADC_SAMPLE_COUNT; i++)
+	for (int i = 0; i < FMCW_ADC_SAMPLE_COUNT / 2; i++)
 	{
 		fft_avg_vec_fmcw[i] = (uint32_t)(((float)fft_avg_vec_fmcw[i]) * AVG_WEIGHT_OLD + ((float)scaled_log_mag[i]) * AVG_WEIGHT_NEW);
 	}
@@ -117,8 +103,8 @@ float FMCW_calc_peak()
 {
 	float peak_val = 0;
 	int peak_idx = -1;
-	int start_idx = 3;
-	int stop_idx = FMCW_ADC_SAMPLE_COUNT/4;
+	int start_idx = 1;
+	int stop_idx = FMCW_MAX_BIN+1;
 
 	for (int i = start_idx; i < stop_idx; i++)
 	{ // ignore 0hz bin, since that has a high value

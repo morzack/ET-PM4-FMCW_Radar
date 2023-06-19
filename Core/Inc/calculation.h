@@ -12,9 +12,9 @@ extern uint8_t batt_lvl;
 
 extern uint32_t raw_PC1_stream[FMCW_ADC_SAMPLE_COUNT / 2];
 extern uint32_t raw_PC3_stream[FMCW_ADC_SAMPLE_COUNT / 2];
-extern uint32_t raw_PC5_stream[FMCW_ADC_SAMPLE_COUNT / 2];
+extern uint32_t raw_PC5_stream[FMCW_ADC_SAMPLE_COUNT];
 // extern uint32_t fft_avg_vec_dopp[FMCW_ADC_SAMPLE_COUNT];
-extern uint32_t fft_avg_vec_fmcw[FMCW_ADC_SAMPLE_COUNT];
+extern uint32_t fft_avg_vec_fmcw[FMCW_ADC_SAMPLE_COUNT / 2];
 
 void CALC_battery_level(uint16_t batt_sample);
 

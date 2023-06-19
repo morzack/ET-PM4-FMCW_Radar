@@ -11,6 +11,7 @@
 
 void DISPLAY_battery(void);
 void DISPLAY_FFT_diagnosis(void);
-void DISPLAY_graph_FFT_data(void);
+void DISPLAY_graph_FFT_data_FMCW(void);
+void DISPLAY_graph_FFT_data_DOPP(void);
 
 #endif

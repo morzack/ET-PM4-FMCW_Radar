@@ -34,6 +34,13 @@ static uint32_t DAC_sample = 0; // value for DAC FMCW sweep
 bool FMCW_MEAS_ready = false;
 uint32_t FMCW_ADC_samples[FMCW_ADC_SAMPLE_COUNT * 2];
 
+bool MEAS_data1_ready = false; ///< New data from ADC 1 is ready
+bool MEAS_data3_ready = false; ///< New data from ADC 3 is ready
+bool ACC_data_rdy = false;	   ///< Accumulator data is ready
+
+bool MEAS_DOPP_ready = false;
+uint32_t ADC_DOPP_samples[DOPP_ADC_SAMPLES * 2]; // needs zero padding later
+
 /** ***************************************************************************
  * @brief Configure GPIOs in analog mode.
  *
@@ -64,8 +71,8 @@ void MEAS_timer_init(void)
 
 	// DOPP timer
 	__HAL_RCC_TIM2_CLK_ENABLE();   // Enable Clock for TIM2
-	TIM2->PSC = FMCW_TIM_PRESCALER; // Prescaler for clock freq.
-	TIM2->ARR = FMCW_TIM_TOP;	   // Auto reload = counter top value
+	TIM2->PSC = DOPP_TIM_PRESCALE; // Prescaler for clock freq.
+	TIM2->ARR = DOPP_TIM_TOP;	   // Auto reload = counter top value
 	TIM2->CR2 |= TIM_CR2_MMS_1;	   // TRGO on update
 
 	// DAC timer
@@ -150,16 +157,12 @@ bool batteryStatus(void)
 
 void FMCW_ADC_scan_init(void)
 {
-	// TODO make sure that the actual pins are correct for the final code
-	// TODO stopped here
 	__HAL_RCC_ADC1_CLK_ENABLE();				   // Enable Clock for ADC1
 	__HAL_RCC_ADC2_CLK_ENABLE();				   // Enable Clock for ADC2
 	ADC->CCR |= ADC_CCR_DMA_1;					   // Enable DMA mode 2 = dual DMA
 	ADC->CCR |= ADC_CCR_MULTI_1 | ADC_CCR_MULTI_2; // ADC1 and ADC2 simultan.
-	// TODO verify and make sure that we can use the JEXT version for tim1
-	// worst case scenario where we can't use TIM8, we just change the top/arr values on the fly for tim2
 	ADC1->CR2 |= (1UL << ADC_CR2_EXTEN_Pos);	   // En. ext. trigger on rising e.
-	ADC1->CR2 |= (0b1110 << ADC_CR2_EXTSEL_Pos);	   // Timer 8 TRGO event -- p398 STM32 ref man
+	ADC1->CR2 |= (0b1110 << ADC_CR2_EXTSEL_Pos);   // Timer 8 TRGO event -- p398 STM32 ref man
 	ADC1->SQR3 |= (15UL << ADC_SQR3_SQ1_Pos);	   // Input 11 = first conversion
 	ADC2->SQR3 |= (13UL << ADC_SQR3_SQ1_Pos);	   // Input 13 = first conversion
 	__HAL_RCC_DMA2_CLK_ENABLE();				   // Enable Clock for DMA2
@@ -177,7 +180,7 @@ void FMCW_ADC_scan_init(void)
 	DMA2_Stream4->CR |= DMA_SxCR_PSIZE_1;			 // Peripheral data size = 32 bit
 	DMA2_Stream4->CR |= DMA_SxCR_MINC;				 // Increment memory address pointer
 	DMA2_Stream4->CR |= DMA_SxCR_TCIE;				 // Transfer complete interrupt enable
-	DMA2_Stream4->NDTR = FMCW_ADC_SAMPLE_COUNT;			 // Number of data items to transfer
+	DMA2_Stream4->NDTR = FMCW_ADC_SAMPLE_COUNT;		 // Number of data items to transfer
 	DMA2_Stream4->PAR = (uint32_t)&ADC->CDR;		 // Peripheral register address
 	DMA2_Stream4->M0AR = (uint32_t)FMCW_ADC_samples; // Buffer memory loc. address
 }
@@ -190,6 +193,49 @@ void FMCW_ADC_scan_start(void)
 	ADC1->CR2 |= ADC_CR2_ADON;				 // Enable ADC1
 	ADC2->CR2 |= ADC_CR2_ADON;				 // Enable ADC2
 	TIM8->CR1 |= TIM_CR1_CEN;				 // Enable timer
+}
+
+void ADC_DOPP_scan_init(void)
+{
+	// scan inputs from PC1/PC3 into memory
+	// PC1 -> ADC1 -> DMA ch0str4
+	// PC3 -> ADC2 -> DMA ch1str3
+	__HAL_RCC_ADC1_CLK_ENABLE();				   // Enable Clock for ADC1
+	__HAL_RCC_ADC2_CLK_ENABLE();				   // Enable Clock for ADC2
+	ADC->CCR |= ADC_CCR_DMA_1;					   // Enable DMA mode 2 = dual DMA
+	ADC->CCR |= ADC_CCR_MULTI_1 | ADC_CCR_MULTI_2; // ADC1 and ADC2 simultan.
+	ADC1->CR2 |= (1UL << ADC_CR2_EXTEN_Pos);	   // En. ext. trigger on rising e.
+	ADC1->CR2 |= (6UL << ADC_CR2_EXTSEL_Pos);	   // Timer 2 TRGO event
+	ADC1->SQR3 |= (11UL << ADC_SQR3_SQ1_Pos);	   // Input 11 = first conversion
+	ADC2->SQR3 |= (13UL << ADC_SQR3_SQ1_Pos);	   // Input 13 = first conversion
+	__HAL_RCC_DMA2_CLK_ENABLE();				   // Enable Clock for DMA2
+
+	DMA2_Stream4->CR &= ~DMA_SxCR_EN; // Disable the DMA stream 4
+	while (DMA2_Stream4->CR & DMA_SxCR_EN)
+	{
+		;
+	}								 // Wait for DMA to finish
+	DMA2->HIFCR |= DMA_HIFCR_CTCIF4; // Clear transfer complete interrupt fl.
+
+	DMA2_Stream4->CR |= (0UL << DMA_SxCR_CHSEL_Pos); // Select channel 0
+	DMA2_Stream4->CR |= DMA_SxCR_PL_1;				 // Priority high
+	DMA2_Stream4->CR |= DMA_SxCR_MSIZE_1;			 // Memory data size = 32 bit
+	DMA2_Stream4->CR |= DMA_SxCR_PSIZE_1;			 // Peripheral data size = 32 bit
+	DMA2_Stream4->CR |= DMA_SxCR_MINC;				 // Increment memory address pointer
+	DMA2_Stream4->CR |= DMA_SxCR_TCIE;				 // Transfer complete interrupt enable
+	DMA2_Stream4->NDTR = DOPP_ADC_SAMPLES;			 // Number of data items to transfer
+	DMA2_Stream4->PAR = (uint32_t)&ADC->CDR;		 // Peripheral register address
+	DMA2_Stream4->M0AR = (uint32_t)ADC_DOPP_samples; // Buffer memory loc. address
+}
+
+void ADC_DOPP_scan_start(void)
+{
+	DMA2_Stream4->CR |= DMA_SxCR_EN;		 // Enable DMA
+	NVIC_ClearPendingIRQ(DMA2_Stream4_IRQn); // Clear pending DMA interrupt
+	NVIC_EnableIRQ(DMA2_Stream4_IRQn);		 // Enable DMA interrupt in the NVIC
+	ADC1->CR2 |= ADC_CR2_ADON;				 // Enable ADC1
+	ADC2->CR2 |= ADC_CR2_ADON;				 // Enable ADC2
+	TIM2->CR1 |= TIM_CR1_CEN;				 // Enable timer
 }
 
 /** ***************************************************************************
@@ -215,11 +261,13 @@ void DMA2_Stream4_IRQHandler(void)
 			;
 		}								 // Wait for DMA to finish
 		DMA2->HIFCR |= DMA_HIFCR_CTCIF4; // Clear transfer complete interrupt fl.
+		TIM2->CR1 &= ~TIM_CR1_CEN;		 // Disable timer
 		TIM8->CR1 &= ~TIM_CR1_CEN;		 // Disable timer
 		ADC1->CR2 &= ~ADC_CR2_ADON;		 // Disable ADC1
 		ADC2->CR2 &= ~ADC_CR2_ADON;		 // Disable ADC2
 		ADC->CCR &= ~ADC_CCR_DMA_1;		 // Disable DMA mode
 
+		// TODO use different interleaving for different modes
 		/* Extract combined samples for current mode */
 		for (int32_t i = FMCW_ADC_SAMPLE_COUNT - 1; i >= 0; i--)
 		{
@@ -227,6 +275,13 @@ void DMA2_Stream4_IRQHandler(void)
 			FMCW_ADC_samples[2 * i] = (FMCW_ADC_samples[i] & 0xffff);
 		}
 		FMCW_MEAS_ready = true;
+
+		for (int32_t i = DOPP_ADC_SAMPLES - 1; i >= 0; i--)
+		{
+			ADC_DOPP_samples[2 * i + 1] = (ADC_DOPP_samples[i] >> 16);
+			ADC_DOPP_samples[2 * i] = (ADC_DOPP_samples[i] & 0xffff);
+		}
+		MEAS_DOPP_ready = true;
 
 		ADC_reset();
 	}

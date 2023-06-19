@@ -82,8 +82,11 @@ void DISPLAY_FFT_diagnosis(void)
     MENU_text[0].text_size = &Font16;
     MENU_text[0].text_color = MENU_BUTTON_TEXT_COLOR;
     MENU_text[0].background_color = 0xFF000000;
-    float cfft_peak_freq = FMCW_calc_peak();
+    
+    // float cfft_peak_freq = FMCW_calc_peak();
+    float cfft_peak_freq = CALC_DOPP_cfft_peak(true);
     snprintf(str, 15, "Peak: %.1fHz", cfft_peak_freq);
+    
     strcpy(MENU_text[0].text_line, str);
     MENU_draw_text(MENU_text[0], LEFT);
 
@@ -102,16 +105,19 @@ void DISPLAY_FFT_diagnosis(void)
     MENU_text[1].text_size = &Font16;
     MENU_text[1].text_color = MENU_BUTTON_TEXT_COLOR;
     MENU_text[1].background_color = 0xFF000000;
-    snprintf(str, 15, "dist: %.1fm", FMCW_calc_distance(cfft_peak_freq));
+    
+    snprintf(str, 15, "vel: %.1fm/s", CALC_DOPP_cfft_speed(cfft_peak_freq));
+    // snprintf(str, 15, "dist: %.1fm", FMCW_calc_distance(cfft_peak_freq));
+    
     strcpy(MENU_text[1].text_line, str);
 
     MENU_draw_text(MENU_text[1], LEFT);
     // MENU_draw_text(MENU_text[1], LEFT);
 
-    DISPLAY_graph_FFT_data();
+    DISPLAY_graph_FFT_data_DOPP();
 }
 
-void DISPLAY_graph_FFT_data(void)
+void DISPLAY_graph_FFT_data_FMCW(void)
 {
     char str[16];
 
@@ -136,5 +142,29 @@ void DISPLAY_graph_FFT_data(void)
 
         // draw raw voltage data
         MENU_draw_graph_ptr(10, HEADER_HEIGHT + 40 + 100 + 10, 220, 100, &raw_PC5_stream, FMCW_ADC_SAMPLE_COUNT, 0xFF0000FF, true);
+    }
+}
+
+void DISPLAY_graph_FFT_data_DOPP(void)
+{
+    char str[16];
+
+    while (!MEAS_DOPP_ready)
+    {
+        ;
+    }
+    if (MEAS_DOPP_ready)
+    {
+        MEAS_DOPP_ready = false;
+        CALC_DOPP_data();
+
+        // draw FFT data
+        // MENU_draw_graph_ptr(10, HEADER_HEIGHT + 40, 220, 100, &fft_avg_vec_fmcw, FMCW_ADC_SAMPLE_COUNT/2, 0xFF0000FF, true);
+        MENU_draw_graph_ptr(10, HEADER_HEIGHT + 40, 220, 100, &fft_positive_out, DOPP_ADC_SAMPLES/2, 0xFF0000FF, true);
+        MENU_draw_graph_ptr(10, HEADER_HEIGHT + 40, 220, 100, &fft_negative_out, DOPP_ADC_SAMPLES/2, 0xFF00FF00, false);
+
+        // draw raw voltage data
+        MENU_draw_graph_ptr(10, HEADER_HEIGHT + 40 + 100 + 10, 220, 100, &raw_PC1_stream, DOPP_ADC_SAMPLES, 0xFF0000FF, true);
+        MENU_draw_graph_ptr(10, HEADER_HEIGHT + 40 + 100 + 10, 220, 100, &raw_PC3_stream, DOPP_ADC_SAMPLES, 0xFF00FF00, false);
     }
 }

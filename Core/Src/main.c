@@ -73,9 +73,12 @@ int main(void)
 		/* Comment next line if touchscreen interrupt is enabled */
 		// MENU_check_transition();
 
-		FMCW_ADC_scan_init();
-		DAC_sweep_start();
-		FMCW_ADC_scan_start();
+		// FMCW_ADC_scan_init();
+		// DAC_sweep_start();
+		// FMCW_ADC_scan_start();
+
+		ADC_DOPP_scan_init();
+		ADC_DOPP_scan_start();
 
 		HAL_Delay(REFRESH_RATE / 2);
 

@@ -18,7 +18,7 @@
 #define DAC_TIM_TOP 408
 #define DAC_TIM_PRESCALE 0
 
-// FMCW ACD sampling frequency set to sample 64 times in 1ms (i.e. 64khz)
+// FMCW ADC sampling frequency set to sample 64 times in 1ms (i.e. 64khz)
 #define FMCW_ADC_SAMPLING_FREQ 64000
 #define FMCW_TIM_TOP 655 // NOTE was 635?? i think that was a typo
 #define FMCW_TIM_PRESCALER 1
@@ -28,8 +28,22 @@
 #define FMCW_MAX_DIST 5 // m
 #define FMCW_MAX_BIN (FMCW_MAX_DIST * FMCW_DIST_SCALING_FACTOR) / (FMCW_FREQ_BIN_SIZE)
 
+// DOPP ADC sampling frequency set to sample at 4khz
+#define DOPP_ADC_FS 4000 // 4kHz for DOPP
+#define DOPP_TIM_CLOCK 84000000
+#define DOPP_TIM_TOP 9
+#define DOPP_TIM_PRESCALE (DOPP_TIM_CLOCK / DOPP_ADC_FS / (DOPP_TIM_TOP + 1) - 1)
+#define DOPP_ADC_SAMPLES 128 // TODO only taking this many samples for firmware test
+#define DOPP_ADC_SAMPLES_ARR 128
+#define DOPP_ADC_SAMPLES_ZPAD DOPP_ADC_SAMPLES_ARR - DOPP_ADC_SAMPLES
+#define DOPP_FREQ_BIN_SIZE DOPP_ADC_FS / DOPP_ADC_SAMPLES_ARR
+
 extern bool FMCW_MEAS_ready;
 extern uint32_t FMCW_ADC_samples[FMCW_ADC_SAMPLE_COUNT * 2]; // *2 to handle interleaving for dual mode (that we don't use)
+
+extern bool MEAS_DOPP_ready;
+extern uint32_t MEAS_DOPP_input_count;
+extern uint32_t ADC_DOPP_samples[DOPP_ADC_SAMPLES * 2];
 
 void MEAS_GPIO_analog_init(void);
 void MEAS_timer_init(void);
@@ -41,6 +55,9 @@ bool batteryStatus(void);
 
 void FMCW_ADC_scan_init(void);
 void FMCW_ADC_scan_start(void);
+
+void ADC_DOPP_scan_init(void);
+void ADC_DOPP_scan_start(void);
 
 void DAC_sweep_start(void);
 

@@ -66,24 +66,37 @@ int main(void)
 		fft_avg_vec_fmcw[i] = 0;
 	}
 
+	current_display_mode = MODE_DOPP;
+	bool button_pressed = false;
+
 	while (1)
 	{						  // Infinitely loop in main function
 		BSP_LED_Toggle(LED3); // Visual feedback when running
 
-		/* Comment next line if touchscreen interrupt is enabled */
-		// MENU_check_transition();
+		button_pressed = PB_pressed();
+		
+		switch (current_display_mode)
+		{
+		case MODE_SPLASH:
+			break;
+		case MODE_FMCW:
+			DISPLAY_MODE_FMCW();
+			if (button_pressed) {
+				current_display_mode = MODE_DOPP;
+			}
+			break;
+		case MODE_DOPP:
+			DISPLAY_MODE_DOPP();
+			if (button_pressed) {
+				current_display_mode = MODE_FMCW;
+			}
+			break;
 
-		// FMCW_ADC_scan_init();
-		// DAC_sweep_start();
-		// FMCW_ADC_scan_start();
+		default:
+			break;
+		}
 
-		ADC_DOPP_scan_init();
-		ADC_DOPP_scan_start();
-
-		HAL_Delay(REFRESH_RATE / 2);
-
-		DISPLAY_FFT_diagnosis();
-		HAL_Delay(REFRESH_RATE / 2); // Wait or sleep
+		HAL_Delay(REFRESH_RATE); // Wait or sleep
 	}
 }
 

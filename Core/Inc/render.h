@@ -27,12 +27,6 @@
 
 #define LOG_GRAPH_SCALING 10
 
-// TODO reimplement later
-typedef enum
-{
-    MENU_MAIN = 0,
-} MENU_item_t;
-
 /** Enumeration of possible text alignments */
 typedef enum
 {
@@ -68,7 +62,6 @@ typedef struct
     char text_line[20];
 } MENU_text_t;
 
-extern MENU_item_t MENU_state;
 extern MENU_entry_t MENU_entry[10];
 extern MENU_text_t MENU_text[10];
 extern TS_StateTypeDef TS_State;

@@ -21,15 +21,18 @@
 #include "main.h"
 #include "render.h"
 
-uint32_t raw_PC1_stream[DOPP_ADC_SAMPLES];
-uint32_t raw_PC3_stream[DOPP_ADC_SAMPLES];
+uint32_t raw_PC1_stream[DOPP_ADC_SAMPLE_COUNT];
+uint32_t raw_PC3_stream[DOPP_ADC_SAMPLE_COUNT];
 uint32_t raw_PC5_stream[FMCW_ADC_SAMPLE_COUNT];
 
 uint32_t fft_avg_vec_dopp[FMCW_ADC_SAMPLE_COUNT];
 uint32_t fft_avg_vec_fmcw[FMCW_ADC_SAMPLE_COUNT / 2];
 
-uint32_t fft_positive_out[DOPP_ADC_SAMPLES / 2];
-uint32_t fft_negative_out[DOPP_ADC_SAMPLES / 2];
+uint32_t fft_positive_out[DOPP_ADC_SAMPLE_COUNT / 2];
+uint32_t fft_negative_out[DOPP_ADC_SAMPLE_COUNT / 2];
+
+float FMCW_recent_dists[N_RECENT_DIST_MEASUREMENTS];
+uint8_t recent_dist_idx = 0;
 
 uint8_t batt_lvl;
 
@@ -38,7 +41,7 @@ arm_rfft_fast_instance_f32 fmcw_rfft_fast_instance;
 
 void init_cfft(void)
 {
-	arm_cfft_init_f32(&dopp_cfft_instance, DOPP_ADC_SAMPLES);
+	arm_cfft_init_f32(&dopp_cfft_instance, DOPP_ADC_SAMPLE_COUNT);
 	arm_rfft_fast_init_f32(&fmcw_rfft_fast_instance, FMCW_ADC_SAMPLE_COUNT);
 }
 
@@ -48,7 +51,7 @@ void init_cfft(void)
  *
  * The approximated percentage is stored in a global variable
  *****************************************************************************/
-void CALC_battery_level(uint16_t batt_sample)
+void calc_battery_level(uint16_t batt_sample)
 {
 	if (batt_sample <= 2600)
 	{
@@ -107,7 +110,7 @@ float FMCW_calc_peak()
 	float peak_val = 0;
 	int peak_idx = -1;
 	int start_idx = 1;
-	int stop_idx = FMCW_MAX_BIN+1;
+	int stop_idx = (FMCW_MAX_BIN+1)/2;
 
 	for (int i = start_idx; i < stop_idx; i++)
 	{ // ignore 0hz bin, since that has a high value
@@ -122,30 +125,34 @@ float FMCW_calc_peak()
 	{
 		return 0;
 	}
-	return peak_idx * FMCW_FREQ_BIN_SIZE * 2;
+	return peak_idx * FMCW_FREQ_BIN_SIZE * 2; // TODO why factor of 2
 }
 
 float FMCW_calc_distance(float peak_freq)
 {
-	float dist = peak_freq / 1734.5f; // TODO scaling calculated from excel
-	return dist;
+	float dist = peak_freq / FMCW_DIST_SCALING_FACTOR; // TODO scaling calculated from excel
+	FMCW_recent_dists[recent_dist_idx] = dist;
+	recent_dist_idx++;
+	recent_dist_idx %= N_RECENT_DIST_MEASUREMENTS;
+	float dist_sum = 0;
+	for (uint8_t i=0; i<N_RECENT_DIST_MEASUREMENTS; i++) {
+		dist_sum += FMCW_recent_dists[i];
+	}
+	return dist_sum / N_RECENT_DIST_MEASUREMENTS;
+	// return dist;
 }
 
-void CALC_DOPP_data(void)
+void DOPP_calc_data(void)
 {
 	init_cfft();
 
 	float sample_adc1;
 	float sample_adc2;
-	float cfft_inout[DOPP_ADC_SAMPLES * 2];
-	for (uint32_t n = 0; n < DOPP_ADC_SAMPLES; n++)
+	float cfft_inout[DOPP_ADC_SAMPLE_COUNT * 2];
+	for (uint32_t n = 0; n < DOPP_ADC_SAMPLE_COUNT; n++)
 	{
-		sample_adc1 = (float32_t)(ADC_DOPP_samples[n * 2]);
-		sample_adc2 = (float32_t)(ADC_DOPP_samples[n * 2 + 1]);
-
-		// const float freq = 500;
-		// sample_adc1 = 1000+1000*cos(2.0f*3.14159f*freq*(float)n/(float)DOPP_ADC_FS);
-		// sample_adc2 = 1000+1000*sin(2.0f*3.14159f*freq*(float)n/(float)DOPP_ADC_FS);
+		sample_adc1 = (float32_t)(DOPP_ADC_samples[n * 2]);
+		sample_adc2 = (float32_t)(DOPP_ADC_samples[n * 2 + 1]);
 
 		cfft_inout[n * 2] = sample_adc1;
 		cfft_inout[n * 2 + 1] = sample_adc2;
@@ -155,21 +162,21 @@ void CALC_DOPP_data(void)
 	}
 	arm_cfft_f32(&dopp_cfft_instance, cfft_inout, 0, 1);
 	
-	float cmplx_mag_out[DOPP_ADC_SAMPLES];
-	arm_cmplx_mag_f32(cfft_inout, cmplx_mag_out, DOPP_ADC_SAMPLES);
+	float cmplx_mag_out[DOPP_ADC_SAMPLE_COUNT];
+	arm_cmplx_mag_f32(cfft_inout, cmplx_mag_out, DOPP_ADC_SAMPLE_COUNT);
 
-	for (int i = 0; i < DOPP_ADC_SAMPLES/2; i++)
+	for (int i = 0; i < DOPP_ADC_SAMPLE_COUNT/2; i++)
 	{
 		fft_positive_out[i] = (uint32_t)(log((double)cmplx_mag_out[i])*20)*LOG_GRAPH_SCALING;
-		fft_negative_out[i] = (uint32_t)(log((double)cmplx_mag_out[i+DOPP_ADC_SAMPLES/2])*20)*LOG_GRAPH_SCALING;
+		fft_negative_out[i] = (uint32_t)(log((double)cmplx_mag_out[i+DOPP_ADC_SAMPLE_COUNT/2])*20)*LOG_GRAPH_SCALING;
 	}
 }
 
-int CALC_DOPP_cfft_peak(bool full_spectrum) {
+int DOPP_calc_peak(bool full_spectrum) {
 	float peak_val = 0;
 	int peak_idx = -1;
 
-	for (int i=1; i<DOPP_ADC_SAMPLES/2; i++) { // ignore 0hz bin, since that has a high value
+	for (int i=1; i<DOPP_ADC_SAMPLE_COUNT/2; i++) { // ignore 0hz bin, since that has a high value
 		if (fft_positive_out[i]  > peak_val) {
 			peak_val = fft_positive_out[i];
 			peak_idx = i;
@@ -183,16 +190,16 @@ int CALC_DOPP_cfft_peak(bool full_spectrum) {
 		return peak_idx * DOPP_FREQ_BIN_SIZE; // TODO convert to frequency
 	}
 
-	for (int i=DOPP_ADC_SAMPLES/2+1; i<DOPP_ADC_SAMPLES; i++) {
+	for (int i=DOPP_ADC_SAMPLE_COUNT/2+1; i<DOPP_ADC_SAMPLE_COUNT; i++) {
 		if (fft_positive_out[i]  > peak_val) {
 			peak_val = fft_positive_out[i];
-			peak_idx = i-DOPP_ADC_SAMPLES;
+			peak_idx = i-DOPP_ADC_SAMPLE_COUNT;
 		}
 	}
 	return peak_idx * DOPP_FREQ_BIN_SIZE;
 }
 
-float CALC_DOPP_cfft_speed(int peak_freq) {
+float DOPP_calc_speed(int peak_freq) {
 	// Doppler freq:
 	// f_d = 2 * v/wavelength
 	// Wavelength = c/f_c

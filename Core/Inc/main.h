@@ -13,7 +13,7 @@ extern bool buzzer;
  *****************************************************************************/
 #define EVAL_REV_E
 
-// #define FLIPPED_LCD  // when defined, LCD orientation is rotated by 180°
+#define FLIPPED_LCD  // when defined, LCD orientation is rotated by 180°
 
 #define REFRESH_RATE 100 // ms per frame
 

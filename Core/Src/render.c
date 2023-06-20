@@ -21,7 +21,6 @@
 #include "calculation.h"
 #include "measuring.h"
 
-MENU_item_t MENU_state;      ///< transition to this menu
 MENU_entry_t MENU_entry[10]; ///< menu entries
 MENU_text_t MENU_text[10];   ///< menu text
 TS_StateTypeDef TS_State;    ///< State of the touch controller

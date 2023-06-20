@@ -38,8 +38,8 @@ bool MEAS_data1_ready = false; ///< New data from ADC 1 is ready
 bool MEAS_data3_ready = false; ///< New data from ADC 3 is ready
 bool ACC_data_rdy = false;	   ///< Accumulator data is ready
 
-bool MEAS_DOPP_ready = false;
-uint32_t ADC_DOPP_samples[DOPP_ADC_SAMPLES * 2]; // needs zero padding later
+bool DOPP_MEAS_ready = false;
+uint32_t DOPP_ADC_samples[DOPP_ADC_SAMPLE_COUNT * 2]; // needs zero padding later
 
 /** ***************************************************************************
  * @brief Configure GPIOs in analog mode.
@@ -223,9 +223,9 @@ void ADC_DOPP_scan_init(void)
 	DMA2_Stream4->CR |= DMA_SxCR_PSIZE_1;			 // Peripheral data size = 32 bit
 	DMA2_Stream4->CR |= DMA_SxCR_MINC;				 // Increment memory address pointer
 	DMA2_Stream4->CR |= DMA_SxCR_TCIE;				 // Transfer complete interrupt enable
-	DMA2_Stream4->NDTR = DOPP_ADC_SAMPLES;			 // Number of data items to transfer
+	DMA2_Stream4->NDTR = DOPP_ADC_SAMPLE_COUNT;			 // Number of data items to transfer
 	DMA2_Stream4->PAR = (uint32_t)&ADC->CDR;		 // Peripheral register address
-	DMA2_Stream4->M0AR = (uint32_t)ADC_DOPP_samples; // Buffer memory loc. address
+	DMA2_Stream4->M0AR = (uint32_t)DOPP_ADC_samples; // Buffer memory loc. address
 }
 
 void ADC_DOPP_scan_start(void)
@@ -276,12 +276,12 @@ void DMA2_Stream4_IRQHandler(void)
 		}
 		FMCW_MEAS_ready = true;
 
-		for (int32_t i = DOPP_ADC_SAMPLES - 1; i >= 0; i--)
+		for (int32_t i = DOPP_ADC_SAMPLE_COUNT - 1; i >= 0; i--)
 		{
-			ADC_DOPP_samples[2 * i + 1] = (ADC_DOPP_samples[i] >> 16);
-			ADC_DOPP_samples[2 * i] = (ADC_DOPP_samples[i] & 0xffff);
+			DOPP_ADC_samples[2 * i + 1] = (DOPP_ADC_samples[i] >> 16);
+			DOPP_ADC_samples[2 * i] = (DOPP_ADC_samples[i] & 0xffff);
 		}
-		MEAS_DOPP_ready = true;
+		DOPP_MEAS_ready = true;
 
 		ADC_reset();
 	}

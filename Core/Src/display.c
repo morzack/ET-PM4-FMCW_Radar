@@ -87,12 +87,19 @@ void DISPLAY_MODE_DOPP(void)
     MENU_clear_screen();
     MENU_draw_header("DOPP");
 
-    MENU_text[0].pos[0] = 10;
+    MENU_text[0].pos[0] = 40;
     MENU_text[0].pos[1] = HEADER_HEIGHT + 10;
     MENU_text[0].max_length = 16;
-    MENU_text[0].text_size = &Font16;
+    MENU_text[0].text_size = &Font20;
     MENU_text[0].text_color = MENU_BUTTON_TEXT_COLOR;
     MENU_text[0].background_color = 0xFF000000;
+
+    MENU_text[1].pos[0] = 40;
+    MENU_text[1].pos[1] = HEADER_HEIGHT + 10 + 20 + 10;
+    MENU_text[1].max_length = 16;
+    MENU_text[1].text_size = &Font20;
+    MENU_text[1].text_color = MENU_BUTTON_TEXT_COLOR;
+    MENU_text[1].background_color = 0xFF000000;
     
     float dopp_peak_freq = DOPP_calc_peak(true);
     float dopp_speed = DOPP_calc_speed(dopp_peak_freq);
@@ -101,16 +108,19 @@ void DISPLAY_MODE_DOPP(void)
     // TODO km/h
     snprintf(str, 15, "%.1f m/s", dopp_speed);
     strcpy(MENU_text[0].text_line, str);
-
     MENU_draw_text(MENU_text[0], LEFT);
     
+    snprintf(str, 15, "%.0f km/h", dopp_speed_km);
+    strcpy(MENU_text[1].text_line, str);
+    MENU_draw_text(MENU_text[1], LEFT);
+    
     // FFT data
-    MENU_draw_graph_ptr(10, HEADER_HEIGHT + 40, 220, 100, &fft_positive_out, DOPP_ADC_SAMPLE_COUNT / 2, 0xFF0000FF, true);
-    MENU_draw_graph_ptr(10, HEADER_HEIGHT + 40, 220, 100, &fft_negative_out, DOPP_ADC_SAMPLE_COUNT / 2, 0xFF00FF00, false);
+    MENU_draw_graph_ptr(10, HEADER_HEIGHT + 90, 220, 75, &fft_positive_out, DOPP_ADC_SAMPLE_COUNT / 2, 0xFF0000FF, true);
+    MENU_draw_graph_ptr(10, HEADER_HEIGHT + 90, 220, 75, &fft_negative_out, DOPP_ADC_SAMPLE_COUNT / 2, 0xFF00FF00, false);
 
     // draw raw voltage data
-    MENU_draw_graph_ptr(10, HEADER_HEIGHT + 40 + 100 + 10, 220, 100, &raw_PC1_stream, DOPP_ADC_SAMPLE_COUNT, 0xFF0000FF, true);
-    MENU_draw_graph_ptr(10, HEADER_HEIGHT + 40 + 100 + 10, 220, 100, &raw_PC3_stream, DOPP_ADC_SAMPLE_COUNT, 0xFF00FF00, false);
+    MENU_draw_graph_ptr(10, HEADER_HEIGHT + 90 + 75 + 10, 220, 75, &raw_PC1_stream, DOPP_ADC_SAMPLE_COUNT, 0xFF0000FF, true);
+    MENU_draw_graph_ptr(10, HEADER_HEIGHT + 90 + 75 + 10, 220, 75, &raw_PC3_stream, DOPP_ADC_SAMPLE_COUNT, 0xFF00FF00, false);
 }
 
 /*
@@ -130,10 +140,10 @@ void DISPLAY_MODE_FMCW(void)
     MENU_clear_screen();
     MENU_draw_header("FMCW");
 
-    MENU_text[0].pos[0] = 10;
-    MENU_text[0].pos[1] = HEADER_HEIGHT + 10;
+    MENU_text[0].pos[0] = FMCW_GRAPH_X;
+    MENU_text[0].pos[1] = HEADER_HEIGHT + 10+25;
     MENU_text[0].max_length = 16;
-    MENU_text[0].text_size = &Font16;
+    MENU_text[0].text_size = &Font20;
     MENU_text[0].text_color = MENU_BUTTON_TEXT_COLOR;
     MENU_text[0].background_color = 0xFF000000;
     
@@ -146,10 +156,10 @@ void DISPLAY_MODE_FMCW(void)
     MENU_draw_text(MENU_text[0], LEFT);
     
     // FFT data
-    MENU_draw_graph_ptr(FMCW_GRAPH_X, HEADER_HEIGHT + 40, FMCW_GRAPH_WIDTH, 100, &fft_avg_vec_fmcw, FMCW_MAX_BIN + 1, 0xFF0000FF, true);
+    MENU_draw_graph_ptr(FMCW_GRAPH_X, HEADER_HEIGHT + 90, FMCW_GRAPH_WIDTH, 75, &fft_avg_vec_fmcw, FMCW_MAX_BIN + 1, 0xFF0000FF, true);
 
     // draw raw voltage data
-    MENU_draw_graph_ptr(FMCW_GRAPH_X, HEADER_HEIGHT + 40 + 100 + 10, FMCW_GRAPH_WIDTH, 100, &raw_PC5_stream, FMCW_ADC_SAMPLE_COUNT, 0xFF0000FF, true);
+    MENU_draw_graph_ptr(FMCW_GRAPH_X, HEADER_HEIGHT + 90 + 75 + 10, FMCW_GRAPH_WIDTH, 75, &raw_PC5_stream, FMCW_ADC_SAMPLE_COUNT, 0xFF0000FF, true);
 
     // draw distance graph
     ALERT_draw_blocks(DIST_BLOCK_N - fmcw_block_draw);

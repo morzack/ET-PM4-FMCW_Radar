@@ -25,6 +25,8 @@ MENU_entry_t MENU_entry[10]; ///< menu entries
 MENU_text_t MENU_text[10];   ///< menu text
 TS_StateTypeDef TS_State;    ///< State of the touch controller
 
+int dist_block_colors[5] = {DIST_COLOR_CLOSE, DIST_COLOR_MID, DIST_COLOR_FAR, DIST_COLOR_FAR};
+
 /*
  * draws a "header" to the display
  * this is rendered at the top of the screen in a corner
@@ -40,7 +42,7 @@ void MENU_draw_header(char *header)
     text_pos[1] = (HEADER_HEIGHT - text_height) / 2;                          // y pos
 
     BSP_LCD_SetTextColor(HEADER_BACKGROUND_COLOR);
-    BSP_LCD_FillRect(50, 0, HEADER_WIDTH, HEADER_HEIGHT);
+    BSP_LCD_FillRect(0, 0, HEADER_WIDTH, HEADER_HEIGHT);
     BSP_LCD_SetBackColor(HEADER_BACKGROUND_COLOR);
     BSP_LCD_SetTextColor(HEADER_TEXT_COLOR);
     BSP_LCD_SetFont(HEADER_TEXT_SIZE);
@@ -250,4 +252,23 @@ void MENU_draw_graph_ptr(uint32_t pos_x, uint32_t pos_y, uint32_t size_x, uint32
 
         BSP_LCD_DrawLine((((i - 1) * size_x / (length - 1)) + pos_x), (size_y - data_last + pos_y), (i * size_x / (length - 1) + pos_x), (size_y - data + pos_y));
     }
+}
+
+void ALERT_draw_blocks(int n_blocks_filled) {
+    for (int n_block=0; n_block < DIST_BLOCK_N; n_block++) {
+        int block_x, block_y;
+        block_x = DIST_BLOCK_PADDING_X;
+        block_y = DIST_BLOCK_PADDING_Y + n_block * (DIST_BLOCK_HEIGHT_Y + DIST_BLOCK_PADDING_INNER) + DIST_BLOCK_TOP_PADDING_Y;
+
+        if ((DIST_BLOCK_N-n_block-1) < n_blocks_filled) {
+            BSP_LCD_SetTextColor(dist_block_colors[n_block]);
+            BSP_LCD_FillRect(block_x, block_y, DIST_BLOCK_WIDTH_X, DIST_BLOCK_HEIGHT_Y);
+        }
+    }
+}
+
+void ALERT_draw_distance(float distance) {
+    char text[10];
+	snprintf(text, 9, "Dist: %f", distance);
+    MENU_draw_header(text);
 }

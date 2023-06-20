@@ -19,9 +19,6 @@ typedef enum
 extern DISPLAY_state_t current_display_mode;
 
 void DISPLAY_battery(void);
-void DISPLAY_FFT_diagnosis(void);
-void DISPLAY_graph_FFT_data_FMCW(void);
-void DISPLAY_graph_FFT_data_DOPP(void);
 
 void DISPLAY_MODE_SPLASH(void);
 void DISPLAY_MODE_DOPP(void);

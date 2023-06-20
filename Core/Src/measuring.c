@@ -291,3 +291,7 @@ void DAC_sweep_start(void)
 {
 	TIM5->CR1 |= TIM_CR1_CEN; // Enable timer
 }
+
+void DAC_sweep_stop(void) {
+	TIM5->CR1 &= ~TIM_CR1_CEN; // Enable timer
+}

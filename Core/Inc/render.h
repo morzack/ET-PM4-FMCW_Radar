@@ -11,7 +11,7 @@
 #include "measuring.h"
 
 #define HEADER_HEIGHT 50                   ///< Height of header
-#define HEADER_WIDTH 240 - HEADER_HEIGHT   ///< Width of header
+#define HEADER_WIDTH 240 ///< Width of header
 #define HEADER_TEXT_SIZE &Font24           ///< Possible font sizes: 8 12 16 20 24
 #define HEADER_BACKGROUND_COLOR 0xFFFFFFFF ///< Header background color in HEX value
 #define HEADER_TEXT_COLOR 0xFF000000       ///< Header text color in HEX value
@@ -24,6 +24,25 @@
 
 #define BACK_BUTTON_COLOR_PRESSED 0xFF87CEEB ///< "BACK" button color when pressed in HEX value
 #define BACK_BUTTON_COLOR_IDLE 0xFF00008B
+
+#define DIST_COLOR_FAR                  0xFFFFFFFF
+#define DIST_COLOR_MID                  0xFFFCCF49
+#define DIST_COLOR_CLOSE                0xFFFC4949
+
+#define SCREEN_WIDTH                    240
+#define SCREEN_HEIGHT                   320
+
+#define DIST_BLOCK_N                    4
+#define DIST_BLOCK_PADDING_X            30
+#define DIST_BLOCK_PADDING_Y            20
+#define DIST_BLOCK_PADDING_INNER        15
+#define DIST_BLOCK_TOP_PADDING_Y        60
+
+#define DIST_BLOCK_WIDTH_X              (SCREEN_WIDTH/2-DIST_BLOCK_PADDING_X*2)
+#define DIST_BLOCK_HEIGHT_Y             (SCREEN_HEIGHT-DIST_BLOCK_PADDING_Y*2-DIST_BLOCK_TOP_PADDING_Y)/DIST_BLOCK_N-DIST_BLOCK_PADDING_INNER
+
+#define FMCW_GRAPH_X                    (SCREEN_WIDTH/2+DIST_BLOCK_PADDING_X)
+#define FMCW_GRAPH_WIDTH                DIST_BLOCK_WIDTH_X
 
 #define LOG_GRAPH_SCALING 10
 
@@ -77,5 +96,8 @@ void MENU_draw_graph_ptr(uint32_t pos_x, uint32_t pos_y, uint32_t size_x, uint32
 void MENU_clear_screen(void);
 void MENU_update_buttons(TS_StateTypeDef TS_State, uint16_t n);
 void MENU_check_transition(void);
+
+void ALERT_draw_blocks(int n_blocks_filled);
+void ALERT_draw_distance(float distance);
 
 #endif

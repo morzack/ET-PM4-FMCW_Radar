@@ -139,14 +139,18 @@ void DISPLAY_MODE_FMCW(void)
     
     float fmcw_peak_freq = FMCW_calc_peak();
     float fmcw_dist = FMCW_calc_distance(fmcw_peak_freq);
+    int fmcw_block_draw = (int) ((fmcw_dist+1.15f/2.0f)/1.15f) - 1;
     snprintf(str, 15, "%.1f m", fmcw_dist);
     strcpy(MENU_text[0].text_line, str);
 
     MENU_draw_text(MENU_text[0], LEFT);
     
     // FFT data
-    MENU_draw_graph_ptr(10, HEADER_HEIGHT + 40, 220, 100, &fft_avg_vec_fmcw, FMCW_MAX_BIN + 1, 0xFF0000FF, true);
+    MENU_draw_graph_ptr(FMCW_GRAPH_X, HEADER_HEIGHT + 40, FMCW_GRAPH_WIDTH, 100, &fft_avg_vec_fmcw, FMCW_MAX_BIN + 1, 0xFF0000FF, true);
 
     // draw raw voltage data
-    MENU_draw_graph_ptr(10, HEADER_HEIGHT + 40 + 100 + 10, 220, 100, &raw_PC5_stream, FMCW_ADC_SAMPLE_COUNT, 0xFF0000FF, true);
+    MENU_draw_graph_ptr(FMCW_GRAPH_X, HEADER_HEIGHT + 40 + 100 + 10, FMCW_GRAPH_WIDTH, 100, &raw_PC5_stream, FMCW_ADC_SAMPLE_COUNT, 0xFF0000FF, true);
+
+    // draw distance graph
+    ALERT_draw_blocks(DIST_BLOCK_N - fmcw_block_draw);
 }

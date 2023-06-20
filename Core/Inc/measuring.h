@@ -57,5 +57,6 @@ void ADC_DOPP_scan_init(void);
 void ADC_DOPP_scan_start(void);
 
 void DAC_sweep_start(void);
+void DAC_sweep_stop(void);
 
 #endif

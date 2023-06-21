@@ -38,7 +38,7 @@ void MENU_draw_header(char *header)
     uint16_t text_width = (HEADER_TEXT_SIZE)->Width;
     uint16_t text_height = (HEADER_TEXT_SIZE)->Height;
 
-    text_pos[0] = ((HEADER_WIDTH - length * text_width) / 2) + HEADER_HEIGHT; // x pos
+    text_pos[0] = ((HEADER_WIDTH - length * text_width) / 2); // x pos
     text_pos[1] = (HEADER_HEIGHT - text_height) / 2;                          // y pos
 
     BSP_LCD_SetTextColor(HEADER_BACKGROUND_COLOR);
@@ -262,6 +262,9 @@ void ALERT_draw_blocks(int n_blocks_filled) {
 
         if ((DIST_BLOCK_N-n_block-1) < n_blocks_filled) {
             BSP_LCD_SetTextColor(dist_block_colors[n_block]);
+            BSP_LCD_FillRect(block_x, block_y, DIST_BLOCK_WIDTH_X, DIST_BLOCK_HEIGHT_Y);
+        } else {
+            BSP_LCD_SetTextColor(MENU_BACKGROUND_COLOR );
             BSP_LCD_FillRect(block_x, block_y, DIST_BLOCK_WIDTH_X, DIST_BLOCK_HEIGHT_Y);
         }
     }

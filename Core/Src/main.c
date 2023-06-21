@@ -83,12 +83,15 @@ int main(void)
 			DISPLAY_MODE_FMCW();
 			if (button_pressed) {
 				current_display_mode = MODE_DOPP;
+				just_changed_mode = true;
 			}
 			break;
 		case MODE_DOPP:
 			DISPLAY_MODE_DOPP();
+			buzz_now=false;
 			if (button_pressed) {
 				current_display_mode = MODE_FMCW;
+				just_changed_mode = true;
 			}
 			break;
 
@@ -96,6 +99,7 @@ int main(void)
 			break;
 		}
 
+		buzz();
 		HAL_Delay(REFRESH_RATE); // Wait or sleep
 	}
 }
@@ -186,7 +190,7 @@ static void shutdown(void)
  *****************************************************************************/
 void buzz(void)
 {
-	if (buzzer)
+	if (buzz_now)
 	{
 		__HAL_RCC_GPIOG_CLK_ENABLE();		 // Enable Clock for GPIO port G
 		GPIOG->MODER &= ~GPIO_MODER_MODER3;	 // Reset mode for PG3

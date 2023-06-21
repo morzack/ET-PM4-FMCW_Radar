@@ -18,6 +18,8 @@ typedef enum
 
 extern DISPLAY_state_t current_display_mode;
 
+extern bool just_changed_mode;
+
 void DISPLAY_battery(void);
 
 void DISPLAY_MODE_SPLASH(void);

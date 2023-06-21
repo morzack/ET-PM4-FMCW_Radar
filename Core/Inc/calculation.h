@@ -8,6 +8,10 @@
 #define AVG_WEIGHT_OLD 0.95
 #define AVG_WEIGHT_NEW (1 - AVG_WEIGHT_OLD)
 #define N_RECENT_DIST_MEASUREMENTS 10
+#define N_SAWTOOTH_CORRECTION 10
+#define FMCW_GAIN 20.0
+
+extern bool buzz_now;
 
 extern uint8_t batt_lvl;
 

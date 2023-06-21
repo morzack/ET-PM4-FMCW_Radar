@@ -34,6 +34,8 @@ uint32_t fft_negative_out[DOPP_ADC_SAMPLE_COUNT / 2];
 float FMCW_recent_dists[N_RECENT_DIST_MEASUREMENTS];
 uint8_t recent_dist_idx = 0;
 
+bool buzz_now = false;
+
 uint8_t batt_lvl;
 
 arm_cfft_instance_f32 dopp_cfft_instance;
@@ -42,7 +44,7 @@ arm_rfft_fast_instance_f32 fmcw_rfft_fast_instance;
 void init_cfft(void)
 {
 	arm_cfft_init_f32(&dopp_cfft_instance, DOPP_ADC_SAMPLE_COUNT);
-	arm_rfft_fast_init_f32(&fmcw_rfft_fast_instance, FMCW_ADC_SAMPLE_COUNT);
+	arm_rfft_fast_init_f32(&fmcw_rfft_fast_instance, FMCW_ADC_SAMPLE_COUNT+FMCW_ADC_ZERO_PADDING);
 }
 
 /** ***************************************************************************
@@ -67,38 +69,62 @@ void calc_battery_level(uint16_t batt_sample)
 	}
 }
 
+float sawtooth_peak_vals[N_SAWTOOTH_CORRECTION];
+int sawtooth_peak_idx = 0;
+
 void FMCW_calc_data(void)
 {
 	init_cfft();
 
 	float fmcw_sample;
-	float rfft_in[FMCW_ADC_SAMPLE_COUNT];
+	float rfft_in[FMCW_ADC_SAMPLE_COUNT + FMCW_ADC_ZERO_PADDING];
 	for (uint32_t n = 0; n < FMCW_ADC_SAMPLE_COUNT; n++)
 	{
 		fmcw_sample = (float32_t)(FMCW_ADC_samples[n * 2]);
-		rfft_in[n] = fmcw_sample;
+		rfft_in[n+FMCW_ADC_ZERO_PADDING] = fmcw_sample;
 		raw_PC5_stream[n] = fmcw_sample;
 	}
-	float rfft_out[FMCW_ADC_SAMPLE_COUNT];
+	for (uint32_t n=0; n<FMCW_ADC_ZERO_PADDING; n++) {
+		rfft_in[n] = 0;
+	}
+
+	sawtooth_peak_vals[sawtooth_peak_idx] = (float32_t)raw_PC5_stream[FMCW_ADC_SAMPLE_COUNT-1];
+	sawtooth_peak_idx++;
+	sawtooth_peak_idx %= N_SAWTOOTH_CORRECTION;
+
+	float sawtooth_sum = 0;
+	for (uint32_t i=0; i<N_SAWTOOTH_CORRECTION; i++) {
+		sawtooth_sum += sawtooth_peak_vals[i];
+	}
+	sawtooth_sum /= ((float32_t)N_SAWTOOTH_CORRECTION);
+	sawtooth_sum -= (float32_t)raw_PC5_stream[0];
+
+	for (uint32_t i=0; i<FMCW_ADC_SAMPLE_COUNT; i++) {
+		rfft_in[i+FMCW_ADC_ZERO_PADDING] -= ((float)i)*(sawtooth_sum/((float)FMCW_ADC_SAMPLE_COUNT));
+		raw_PC5_stream[i] = rfft_in[i+FMCW_ADC_ZERO_PADDING];
+	}
+
+	float rfft_out[FMCW_ADC_SAMPLE_COUNT+FMCW_ADC_ZERO_PADDING];
 	arm_rfft_fast_f32(&fmcw_rfft_fast_instance, rfft_in, rfft_out, 0);
 
-	float cmplx_mag_out[FMCW_ADC_SAMPLE_COUNT / 2];
-	arm_cmplx_mag_f32(rfft_out, cmplx_mag_out, FMCW_ADC_SAMPLE_COUNT / 2);
+	float cmplx_mag_out[(FMCW_ADC_SAMPLE_COUNT+FMCW_ADC_ZERO_PADDING) / 2];
+	arm_cmplx_mag_f32(rfft_out, cmplx_mag_out, (FMCW_ADC_SAMPLE_COUNT+FMCW_ADC_ZERO_PADDING) / 2);
 
-	float log_mag[FMCW_ADC_SAMPLE_COUNT / 2];
-	for (int i = 0; i < FMCW_ADC_SAMPLE_COUNT / 2; i++)
+	float log_mag[(FMCW_ADC_SAMPLE_COUNT+FMCW_ADC_ZERO_PADDING) / 2];
+	for (int i = 0; i < (FMCW_ADC_SAMPLE_COUNT+FMCW_ADC_ZERO_PADDING) / 2; i++)
 	{
 		log_mag[i] = 20.0f * log10(cmplx_mag_out[i]);
 	}
 
-	float scaled_log_mag[FMCW_ADC_SAMPLE_COUNT / 2];
-	for (int i = 0; i < FMCW_ADC_SAMPLE_COUNT / 2; i++)
+	float scaled_log_mag[(FMCW_ADC_SAMPLE_COUNT+FMCW_ADC_ZERO_PADDING) / 2];
+	for (int i = 0; i < (FMCW_ADC_SAMPLE_COUNT+FMCW_ADC_ZERO_PADDING) / 2; i++)
 	{
 		// apply gain based on frequency (linear w/ freq)
-		scaled_log_mag[i] = (20.0f * log10((float32_t)i) + log_mag[i]) * 80.0f - 5000.0f;
+		scaled_log_mag[i] = (FMCW_GAIN * log10((float32_t)i) + log_mag[i]) * 80.0f - 5000.0f;
 	}
 
 	// run avg
+	// don't need to worry about zero padding extra bins bc/ they're so far out of range
 	for (int i = 0; i < FMCW_ADC_SAMPLE_COUNT / 2; i++)
 	{
 		fft_avg_vec_fmcw[i] = (uint32_t)(((float)fft_avg_vec_fmcw[i]) * AVG_WEIGHT_OLD + ((float)scaled_log_mag[i]) * AVG_WEIGHT_NEW);
@@ -128,17 +154,33 @@ float FMCW_calc_peak()
 	return peak_idx * FMCW_FREQ_BIN_SIZE * 2; // TODO why factor of 2
 }
 
+float median(size_t n, float *a) {
+    for(size_t i = 0; i < n; i++) {
+        size_t lt = 0;
+        size_t eq = 0;
+        for(size_t j = 0; j < n; j++) {
+            if(i == j) continue;
+            if(a[j] < a[i]) lt++;
+            else if(a[j] == a[i]) eq++;
+        }
+        if((n-1)/2 >= lt && (n-1)/2 <= lt + eq)
+            return a[i];
+    }
+	return -1;
+}
+
 float FMCW_calc_distance(float peak_freq)
 {
 	float dist = peak_freq / FMCW_DIST_SCALING_FACTOR; // TODO scaling calculated from excel
 	FMCW_recent_dists[recent_dist_idx] = dist;
 	recent_dist_idx++;
 	recent_dist_idx %= N_RECENT_DIST_MEASUREMENTS;
-	float dist_sum = 0;
-	for (uint8_t i=0; i<N_RECENT_DIST_MEASUREMENTS; i++) {
-		dist_sum += FMCW_recent_dists[i];
-	}
-	return dist_sum / N_RECENT_DIST_MEASUREMENTS;
+	// float dist_sum = 0;
+	// for (uint8_t i=0; i<N_RECENT_DIST_MEASUREMENTS; i++) {
+	// 	dist_sum += FMCW_recent_dists[i];
+	// }
+	// return dist_sum / N_RECENT_DIST_MEASUREMENTS;
+	return median(N_RECENT_DIST_MEASUREMENTS, FMCW_recent_dists);
 	// return dist;
 }
 

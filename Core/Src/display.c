@@ -25,6 +25,8 @@ static bool data_rdy = false;
 
 DISPLAY_state_t current_display_mode = MODE_SPLASH;
 
+bool just_changed_mode = true;
+
 /** ***************************************************************************
  * @brief Display Battery level
  *
@@ -84,8 +86,11 @@ void DISPLAY_MODE_DOPP(void)
     DOPP_MEAS_ready = false;
     DOPP_calc_data();
 
-    MENU_clear_screen();
-    MENU_draw_header("DOPP");
+    if (just_changed_mode) {
+        MENU_clear_screen();
+        MENU_draw_header("SPEED");
+    }
+    just_changed_mode = false;
 
     MENU_text[0].pos[0] = 40;
     MENU_text[0].pos[1] = HEADER_HEIGHT + 10;
@@ -115,17 +120,18 @@ void DISPLAY_MODE_DOPP(void)
     MENU_draw_text(MENU_text[1], LEFT);
     
     // FFT data
-    MENU_draw_graph_ptr(10, HEADER_HEIGHT + 90, 220, 75, &fft_positive_out, DOPP_ADC_SAMPLE_COUNT / 2, 0xFF0000FF, true);
+    MENU_draw_graph_ptr(10, HEADER_HEIGHT + 90, 220, 75, &fft_positive_out, DOPP_ADC_SAMPLE_COUNT / 2, 0xFFFF0000, true);
     MENU_draw_graph_ptr(10, HEADER_HEIGHT + 90, 220, 75, &fft_negative_out, DOPP_ADC_SAMPLE_COUNT / 2, 0xFF00FF00, false);
 
     // draw raw voltage data
-    MENU_draw_graph_ptr(10, HEADER_HEIGHT + 90 + 75 + 10, 220, 75, &raw_PC1_stream, DOPP_ADC_SAMPLE_COUNT, 0xFF0000FF, true);
+    MENU_draw_graph_ptr(10, HEADER_HEIGHT + 90 + 75 + 10, 220, 75, &raw_PC1_stream, DOPP_ADC_SAMPLE_COUNT, 0xFFFF0000, true);
     MENU_draw_graph_ptr(10, HEADER_HEIGHT + 90 + 75 + 10, 220, 75, &raw_PC3_stream, DOPP_ADC_SAMPLE_COUNT, 0xFF00FF00, false);
 }
 
 /*
  * display the FMCW data + computed position + distance graph from video demo
  */
+float prev_fmcw_dist = 0;
 void DISPLAY_MODE_FMCW(void)
 {
     char str[16];
@@ -137,8 +143,10 @@ void DISPLAY_MODE_FMCW(void)
     FMCW_MEAS_ready = false;
     FMCW_calc_data();
 
-    MENU_clear_screen();
-    MENU_draw_header("FMCW");
+    if (just_changed_mode) {
+        MENU_clear_screen();
+        MENU_draw_header("DISTANCE");
+    }
 
     MENU_text[0].pos[0] = FMCW_GRAPH_X;
     MENU_text[0].pos[1] = HEADER_HEIGHT + 10+25;
@@ -149,18 +157,29 @@ void DISPLAY_MODE_FMCW(void)
     
     float fmcw_peak_freq = FMCW_calc_peak();
     float fmcw_dist = FMCW_calc_distance(fmcw_peak_freq);
-    int fmcw_block_draw = (int) ((fmcw_dist+1.15f/2.0f)/1.15f) - 1;
-    snprintf(str, 15, "%.1f m", fmcw_dist);
-    strcpy(MENU_text[0].text_line, str);
+    if (fmcw_dist < 1.5f) {
+        buzz_now = true;
+    } else {
+        buzz_now = false;
+    }
+    if (fmcw_dist != prev_fmcw_dist || just_changed_mode) {
+        snprintf(str, 15, "%.1f m", fmcw_dist);
+        int fmcw_block_draw = (int) ((fmcw_dist+1.15f/2.0f)/1.15f) - 1;
+        
+        strcpy(MENU_text[0].text_line, str);
 
-    MENU_draw_text(MENU_text[0], LEFT);
+        MENU_draw_text(MENU_text[0], LEFT);
+
+        // draw distance graph
+        ALERT_draw_blocks(DIST_BLOCK_N - fmcw_block_draw);
+    }
+    prev_fmcw_dist = fmcw_dist;
     
     // FFT data
-    MENU_draw_graph_ptr(FMCW_GRAPH_X, HEADER_HEIGHT + 90, FMCW_GRAPH_WIDTH, 75, &fft_avg_vec_fmcw, FMCW_MAX_BIN + 1, 0xFF0000FF, true);
+    MENU_draw_graph_ptr(FMCW_GRAPH_X, HEADER_HEIGHT + 90, FMCW_GRAPH_WIDTH, 75, &fft_avg_vec_fmcw, FMCW_MAX_BIN + 1, 0xFF00FF00, true);
 
     // draw raw voltage data
-    MENU_draw_graph_ptr(FMCW_GRAPH_X, HEADER_HEIGHT + 90 + 75 + 10, FMCW_GRAPH_WIDTH, 75, &raw_PC5_stream, FMCW_ADC_SAMPLE_COUNT, 0xFF0000FF, true);
-
-    // draw distance graph
-    ALERT_draw_blocks(DIST_BLOCK_N - fmcw_block_draw);
+    MENU_draw_graph_ptr(FMCW_GRAPH_X, HEADER_HEIGHT + 90 + 75 + 10, FMCW_GRAPH_WIDTH, 75, &raw_PC5_stream, FMCW_ADC_SAMPLE_COUNT, 0xFF00FF00, true);
+    
+    just_changed_mode = false;
 }
